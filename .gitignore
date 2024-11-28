@@ -1,0 +1,11 @@
+.idea
+etc
+tmp
+cert
+data
+target
+
+*.exe
+*.out
+.apk
+.jar
