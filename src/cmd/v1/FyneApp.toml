@@ -1,0 +1,13 @@
+Website = "https://github.com/SuperH-0630"
+
+[Details]
+  Icon = "../../../assest/ico/app.ico"
+  Name = "Huan档案"
+  ID = "com.song-zh.hdangan"
+  Version = "1.0.0"
+  Build = 5
+
+[LinuxAndBSD]
+  GenericName = "Huan档案"
+  Categories = ["Network"]
+  Comment = "一个开源的档案管理工具"
