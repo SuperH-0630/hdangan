@@ -113,8 +113,8 @@ func GetNewFileID(rt runtime.RunTime) (int64, error) {
 		return 0, err
 	}
 
-	if res.FileID <= 0 {
-		res.FileID = 1
+	if res.FileID < 0 {
+		res.FileID = 0
 	}
 
 	return res.FileID + 1, err

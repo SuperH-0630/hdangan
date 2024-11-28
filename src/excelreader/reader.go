@@ -366,9 +366,6 @@ func checkTitle(t []string) bool {
 
 func makeFile(rt runtime.RunTime, t []string) int {
 	file, record, oldRecord, err := _makeFile(rt, t)
-	if err != nil {
-		fmt.Printf("err: %s", err)
-	}
 
 	if err == nil && file != nil && record != nil {
 		isNew := file.ID == 0
