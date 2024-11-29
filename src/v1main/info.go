@@ -81,7 +81,6 @@ func ShowInfo(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 
 	infoWindow.SetOnClosed(func() {
 		rt.Action()
-		WinClose(infoWindow)
 		infoWindow = nil
 	})
 	infoWindow.SetCloseIntercept(func() {
@@ -142,12 +141,13 @@ func ShowInfo(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 	box := container.NewVBox(upBox, gg, downCenterBox)
 	cbox := container.NewCenter(box)
 
-	bg := NewBg(max(cbox.MinSize().Width, cbox.Size().Width, 400),
-		max(cbox.MinSize().Height, cbox.Size().Height, 350))
+	bg := NewBg(fmax(cbox.MinSize().Width, cbox.Size().Width, 400),
+		fmax(cbox.MinSize().Height, cbox.Size().Height, 350))
 
 	lastContainer := container.NewStack(bg, cbox)
 	infoWindow.SetContent(lastContainer)
 
 	infoWindow.Show()
 	infoWindow.CenterOnScreen()
+	infoWindow.SetFixedSize(true)
 }

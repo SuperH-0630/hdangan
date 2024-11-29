@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/widget"
 	"github.com/SuperH-0630/hdangan/src/aboutme"
 	"github.com/SuperH-0630/hdangan/src/excelreader"
 	"github.com/SuperH-0630/hdangan/src/model"
@@ -13,52 +12,56 @@ import (
 	"strings"
 )
 
-var Menu *fyne.MainMenu
-var Page *fyne.Menu
-var NowPage int64 = 0
+type MainMenu struct {
+	Window  *CtrlWindow
+	Main    *fyne.MainMenu
+	Page    *fyne.Menu
+	NowPage int64
+}
 
-func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunTime)) *fyne.MainMenu {
-	if Menu != nil {
-		return Menu
-	}
-
+func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)) *MainMenu {
 	lucky := fyne.NewMenuItem("启动/关闭彩蛋", func() {
 		rt.Action()
 		res := ChangeGame(rt)
 		if res == TurnOn {
-			dialog.ShowInformation("提示", "彩蛋已经触发。", w)
+			dialog.ShowInformation("提示", "彩蛋已经触发。", w.window)
 		} else {
-			dialog.ShowInformation("提示", "彩蛋已经关闭。", w)
+			dialog.ShowInformation("提示", "彩蛋已经关闭。", w.window)
 		}
 	})
 
+	wm := &MainMenu{
+		Window:  w,
+		NowPage: 1,
+	}
+
 	search := fyne.NewMenuItem("搜索条件", func() {
 		rt.Action()
-		ShowWhereWindow(rt, &whereInfo, refresh)
+		ShowWhereWindow(rt, &wm.Window.table.whereInfo, refresh)
 	})
 
 	initFile := fyne.NewMenuItem("导入配置文件", func() {
 		rt.Action()
-		NewInitFile(rt, w)
+		NewInitFile(rt, w.window)
 	})
 
 	openFile := fyne.NewMenuItem("打开配置文件", func() {
 		rt.Action()
-		OpenInit(rt, w)
+		OpenInit(rt, w.window)
 	})
 
 	saveFile := fyne.NewMenuItem("另存配置文件", func() {
 		rt.Action()
-		SaveInit(rt, w)
+		SaveInit(rt, w.window)
 	})
 
 	copyFile := fyne.NewMenuItem("复制配置文件", func() {
 		rt.Action()
-		CopyInit(rt, w)
+		CopyInit(rt, w.window)
 	})
 
 	aboutMe := fyne.NewMenuItem("关于", func() {
-		dialog.ShowInformation("关于开发者", aboutme.AboutMe, w)
+		dialog.ShowInformation("关于开发者", aboutme.AboutMe, w.window)
 		rt.Action()
 	})
 
@@ -75,9 +78,9 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 
 	exclFile := fyne.NewMenuItem("模板导入", func() {
 		rt.Action()
-		err := AddFromFile(rt, w, refresh)
+		err := AddFromFile(rt, w.window, refresh)
 		if err != nil {
-			dialog.ShowError(fmt.Errorf("导入失败：%s", err.Error()), w)
+			dialog.ShowError(fmt.Errorf("导入失败：%s", err.Error()), w.window)
 		}
 	})
 
@@ -87,7 +90,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			if writer == nil {
 				return
 			} else if err != nil {
-				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 				return
 			}
 
@@ -95,17 +98,15 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 				_ = writer.Close()
 			}()
 
-			savepath := writer.URI().Path()
-
-			if !strings.HasSuffix(savepath, ".xlsx") {
-				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+			if !strings.HasSuffix(writer.URI().Path(), ".xlsx") {
+				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.CreateTemplate(rt, savepath)
+			err = excelreader.CreateTemplate(rt, writer)
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("模板保存失败：%s", err), w)
+				dialog.ShowError(fmt.Errorf("模板保存失败：%s", err), w.window)
 			}
-		}, w)
+		}, w.window)
 
 		dlg.SetFileName("template.xlsx")
 		dlg.Show()
@@ -113,7 +114,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 
 	tj := fyne.NewMenuItem("数据统计", func() {
 		rt.Action()
-		TongJi(rt, w)
+		TongJi(rt, w.window)
 	})
 
 	outputAll := fyne.NewMenuItem("导出全部档案", func() {
@@ -122,7 +123,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			if writer == nil {
 				return
 			} else if err != nil {
-				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 				return
 			}
 
@@ -133,16 +134,16 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			savepath := writer.URI().Path()
 
 			if !strings.HasSuffix(savepath, ".xlsx") {
-				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
 			err = excelreader.OutputFile(rt, savepath, []model.File{}, nil)
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w)
+				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
-				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w)
+				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w.window)
 			}
-		}, w)
+		}, w.window)
 
 		dlg.SetFileName("all_data.xlsx")
 		dlg.Show()
@@ -154,7 +155,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			if writer == nil {
 				return
 			} else if err != nil {
-				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 				return
 			}
 
@@ -165,16 +166,16 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			savepath := writer.URI().Path()
 
 			if !strings.HasSuffix(savepath, ".xlsx") {
-				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFile(rt, savepath, []model.File{}, &whereInfo)
+			err = excelreader.OutputFile(rt, savepath, []model.File{}, &wm.Window.table.whereInfo)
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w)
+				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
-				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w)
+				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w.window)
 			}
-		}, w)
+		}, w.window)
 
 		dlg.SetFileName("all_data_with_condition.xlsx")
 		dlg.Show()
@@ -186,7 +187,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			if writer == nil {
 				return
 			} else if err != nil {
-				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 				return
 			}
 
@@ -197,16 +198,16 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			savepath := writer.URI().Path()
 
 			if !strings.HasSuffix(savepath, ".xlsx") {
-				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFile(rt, savepath, InfoFile, nil)
+			err = excelreader.OutputFile(rt, savepath, wm.Window.table.InfoFile, nil)
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w)
+				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
-				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w)
+				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w.window)
 			}
-		}, w)
+		}, w.window)
 
 		dlg.SetFileName("one_page_of_data.xlsx")
 		dlg.Show()
@@ -218,7 +219,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			if writer == nil {
 				return
 			} else if err != nil {
-				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+				dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 				return
 			}
 
@@ -229,16 +230,16 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 			savepath := writer.URI().Path()
 
 			if !strings.HasSuffix(savepath, ".xlsx") {
-				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
 			err = excelreader.OutputFileRecord(rt, savepath, nil, nil, nil)
 			if err != nil {
-				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w)
+				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
-				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w)
+				dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w.window)
 			}
-		}, w)
+		}, w.window)
 
 		dlg.SetFileName("all_record_data.xlsx")
 		dlg.Show()
@@ -251,7 +252,7 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 				if writer == nil {
 					return
 				} else if err != nil {
-					dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w)
+					dialog.ShowError(fmt.Errorf("选择框遇到错误：%s", err.Error()), w.window)
 					return
 				}
 
@@ -262,16 +263,16 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 				savepath := writer.URI().Path()
 
 				if !strings.HasSuffix(savepath, ".xlsx") {
-					dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w)
+					dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 				}
 
 				err = excelreader.OutputFileRecord(rt, savepath, nil, nil, &s.SearchRecord)
 				if err != nil {
-					dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w)
+					dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 				} else {
-					dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w)
+					dialog.ShowInformation("完成", fmt.Sprintf("你的数据已被保存在 %s ..", savepath), w.window)
 				}
-			}, w)
+			}, w.window)
 
 			dlg.SetFileName("all_record_data_with_condition.xlsx")
 			dlg.Show()
@@ -282,27 +283,26 @@ func getMainMenu(rt runtime.RunTime, w fyne.Window, refresh func(rt runtime.RunT
 	xitong := fyne.NewMenu("系统", newFile, exclFile, template, aboutMe, quit)
 	peizhi := fyne.NewMenu("配置", initFile, openFile, saveFile, copyFile)
 	sousuo := fyne.NewMenu("搜索", search)
-	Page = fyne.NewMenu("分页")
+	wm.Page = fyne.NewMenu("分页")
 	tongji := fyne.NewMenu("统计", tj, outputAll, outputAllWthSearch, outputNow, outputAllEveryOne, outputAllWthSearchEveryOne)
 	caidan := fyne.NewMenu("彩蛋", lucky)
 
-	menu := fyne.NewMainMenu(xitong, peizhi, sousuo, Page, tongji, caidan)
-
-	return menu
+	wm.Main = fyne.NewMainMenu(xitong, peizhi, sousuo, wm.Page, tongji, caidan)
+	return wm
 }
 
-func ChangePageMenuItem(rt runtime.RunTime, window fyne.Window, table *widget.Table, pageItemCount int, p int64, pageMax int64, message string) {
+func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p int64, pageMax int64, message string) {
 	pageList := make([]*fyne.MenuItem, 0, pageMax)
 	if pageMax <= 0 {
 		pageList = append(pageList, fyne.NewMenuItem("暂无数据", func() {
 			rt.Action()
 		}))
-		NowPage = 0
+		m.NowPage = 0
 	} else {
 		if p > pageMax {
 			p = pageMax
 		}
-		NowPage = p
+		m.NowPage = p
 		for k := int64(1); k <= pageMax; k++ {
 			i := k
 			if i == p {
@@ -313,20 +313,20 @@ func ChangePageMenuItem(rt runtime.RunTime, window fyne.Window, table *widget.Ta
 						if !b {
 							return
 						}
-						UpdateTable(rt, window, table, pageItemCount, i)
-					}, window)
+						m.Window.table.UpdateTable(rt, pageItemCount, i)
+					}, m.Window.window)
 				})
 				pageList = append(pageList, m)
 			} else {
 				pageList = append(pageList, fyne.NewMenuItem(fmt.Sprintf("第%d页", i), func() {
 					rt.Action()
-					UpdateTable(rt, window, table, pageItemCount, i)
+					m.Window.table.UpdateTable(rt, pageItemCount, i)
 				}))
 			}
 		}
 	}
 
-	Page.Items = pageList
-	Page.Refresh()
-	Menu.Refresh()
+	m.Page.Items = pageList
+	m.Page.Refresh()
+	m.Main.Refresh()
 }

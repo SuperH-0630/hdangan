@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/SuperH-0630/hdangan/src/fail"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/SuperH-0630/hdangan/src/systeminit"
@@ -37,7 +36,10 @@ func NewWhereWindow(rt runtime.RunTime, rw *RecordWindow, refresh func(rt runtim
 func (w *WhereWindow) create(rt runtime.RunTime) {
 	config, err := systeminit.GetInit()
 	if errors.Is(err, systeminit.LuckyError) {
-		fail.ToFail(err.Error())
+		rt.DBConnectError(err)
+		return
+	} else if err != nil {
+		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
 		return
 	}
 
@@ -45,7 +47,6 @@ func (w *WhereWindow) create(rt runtime.RunTime) {
 
 	w.Window.SetOnClosed(func() {
 		rt.Action()
-		WinClose(w.Window)
 		w.Window = nil
 	})
 	w.Window.SetCloseIntercept(func() {
@@ -123,8 +124,8 @@ func (w *WhereWindow) create(rt runtime.RunTime) {
 	box := container.NewVBox(upBox, gg, downCenterBox)
 	cbox := container.NewCenter(box)
 
-	bg := NewBg(max(cbox.MinSize().Width, cbox.Size().Width, 600),
-		max(cbox.MinSize().Height, cbox.Size().Height, 350))
+	bg := NewBg(fmax(cbox.MinSize().Width, cbox.Size().Width, 600),
+		fmax(cbox.MinSize().Height, cbox.Size().Height, 350))
 
 	lastContainer := container.NewStack(bg, cbox)
 	w.Window.SetContent(lastContainer)
@@ -165,7 +166,7 @@ func newFileIDEntry5(input *int64) *widget.Entry {
 			return nil
 		}
 
-		n, err := strconv.ParseInt(s, 0, 64)
+		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return err
 		}

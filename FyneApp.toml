@@ -1,11 +1,11 @@
 Website = "https://github.com/SuperH-0630"
 
 [Details]
-  Icon = "../../../assest/ico/app.ico"
+  Icon = "./assest/ico/app.ico"
   Name = "Huan档案"
   ID = "com.song-zh.hdangan"
-  Version = "1.0.1"
-  Build = 8
+  Version = "1.1.0"
+  Build = 13
 
 [LinuxAndBSD]
   GenericName = "Huan档案"

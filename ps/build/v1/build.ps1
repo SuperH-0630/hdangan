@@ -1,7 +1,9 @@
 Write-Output Start building...
-IF (Test-Path ./target/build/Huan档案.exe) {
-    Remove-Item ./target/build/Huan档案.exe
+
+fyne-cross windows -arch=amd64 -debug -image "fyneio/fyne-cross-images:1.1.3-windows" -developer "Zihuan Song" -name "Huan档案_x86_64.exe" ./src/cmd/v1
+
+IF ($?) {
+    Write-Output Success
+} ELSE {
+    Write-Output Fail
 }
-fyne package --os windows --src ./src/cmd/v1
-Move-Item ./src/cmd/v1/Huan档案.exe ./target/build/Huan档案.exe
-Write-Output Finish

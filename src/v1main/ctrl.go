@@ -3,21 +3,22 @@ package v1main
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"github.com/SuperH-0630/hdangan/src/fail"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"time"
 )
 
-type window fyne.Window
-
 type CtrlWindow struct {
-	window
+	window   fyne.Window
 	lastUse  time.Time
 	killTime time.Duration
 	rt       runtime.RunTime
+	menu     *MainMenu
+	table    *MainTable
 }
 
-func NewWindow(rt runtime.RunTime, title string, killSecond time.Duration) *CtrlWindow {
+var ctrlWindow *CtrlWindow
+
+func newWindow(rt runtime.RunTime, title string, killSecond time.Duration) *CtrlWindow {
 	ks := killSecond * time.Second
 	cw := &CtrlWindow{
 		window:   rt.App().NewWindow(title),
@@ -27,13 +28,14 @@ func NewWindow(rt runtime.RunTime, title string, killSecond time.Duration) *Ctrl
 	}
 
 	cw.window.SetOnClosed(func() {
-		rt.Action()
-		WinClose(cw.window)
+		ctrlWindow = nil
+		ShowHelloWindow(rt)
 	})
 
 	cw.window.SetCloseIntercept(func() {
-		rt.Action()
-		WinClose(cw.window)
+		WinClose(ctrlWindow.window)
+		ctrlWindow = nil
+		ShowHelloWindow(rt)
 	})
 
 	return cw
@@ -55,7 +57,7 @@ func (w *CtrlWindow) Hide() {
 }
 
 func (w *CtrlWindow) Action() {
-	if w.window == nil {
+	if w == nil || w.window == nil {
 		return
 	}
 	w.lastUse = time.Now()
@@ -69,24 +71,14 @@ func (w *CtrlWindow) cc() {
 			}
 
 			if time.Now().Sub(w.lastUse) > w.killTime {
-				ShowHelloWindowTimeout(rt)
-				HideCtrlWindow(rt)
+				err := HideCtrlWindow(rt) // 强行关闭
+				if err == nil {
+					ShowHelloWindowTimeout(rt)
+				}
 				return
 			}
 		}
 	}(w.rt, w)
-}
-
-var ctrlWindow *CtrlWindow
-
-func onClose(rt runtime.RunTime) {
-	if ctrlWindow == nil {
-		return
-	}
-
-	WinClose(ctrlWindow)
-	ctrlWindow = nil
-	ShowHelloWindow(rt)
 }
 
 func createCtrlWindow(rt runtime.RunTime) error {
@@ -94,48 +86,43 @@ func createCtrlWindow(rt runtime.RunTime) error {
 		return nil
 	}
 
-	ctrlWindow = NewWindow(rt, "桓档案-控制中心", 15*60)
-	rt.SetDBConnectErrorWindow(ctrlWindow)
+	ctrlWindow = newWindow(rt, "桓档案-控制中心", 15*60)
+	rt.SetDBConnectErrorWindow(ctrlWindow.window)
 	rt.SetAction(func() {
 		ctrlWindow.Action()
 	})
 
-	ctrlWindow.SetMainMenu(getMainMenu(rt, ctrlWindow, func(rt runtime.RunTime) {
-		UpdateTable(rt, ctrlWindow, fileTable, 0, NowPage)
-	}))
-
-	CreateInfoTable(rt, ctrlWindow)
-
-	bg := NewBg(max(fileTable.MinSize().Width, fileTable.Size().Width, 800),
-		max(fileTable.MinSize().Height, fileTable.Size().Height, 500))
-
-	lastContainer := container.NewStack(bg, fileTable)
-	ctrlWindow.SetContent(lastContainer)
-
-	ctrlWindow.SetOnClosed(func() {
-		onClose(rt)
+	ctrlWindow.menu = getMainMenu(rt, ctrlWindow, func(rt runtime.RunTime) {
+		ctrlWindow.table.UpdateTable(rt, 0, ctrlWindow.menu.NowPage)
 	})
-	ctrlWindow.SetCloseIntercept(func() {
-		onClose(rt)
-	})
+	ctrlWindow.window.SetMainMenu(ctrlWindow.menu.Main)
+
+	ctrlWindow.table = CreateInfoTable(rt, ctrlWindow)
+
+	bg := NewBg(fmax(ctrlWindow.table.fileTable.MinSize().Width, ctrlWindow.table.fileTable.Size().Width, 800),
+		fmax(ctrlWindow.table.fileTable.MinSize().Height, ctrlWindow.table.fileTable.Size().Height, 500))
+
+	lastContainer := container.NewStack(bg, ctrlWindow.table.fileTable)
+	ctrlWindow.window.SetContent(lastContainer)
+
 	return nil
 }
 
-func ShowCtrlWindow(rt runtime.RunTime) {
+func ShowCtrlWindow(rt runtime.RunTime) error {
 	err := createCtrlWindow(rt)
 	if err != nil {
-		fail.ToFail("非常抱歉，数据加载失败。")
-		return
+		return err
 	}
 	ctrlWindow.Show()
-	ctrlWindow.CenterOnScreen()
+	ctrlWindow.window.CenterOnScreen()
+	return err
 }
 
-func HideCtrlWindow(rt runtime.RunTime) {
+func HideCtrlWindow(rt runtime.RunTime) error {
 	err := createCtrlWindow(rt)
 	if err != nil {
-		fail.ToFail("非常抱歉，数据加载失败。")
-		return
+		return err
 	}
 	ctrlWindow.Hide()
+	return nil
 }

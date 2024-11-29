@@ -8,7 +8,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/SuperH-0630/hdangan/src/fail"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/SuperH-0630/hdangan/src/systeminit"
@@ -19,7 +18,10 @@ import (
 func ShowNew(rt runtime.RunTime, refresh func(rt runtime.RunTime)) {
 	config, err := systeminit.GetInit()
 	if errors.Is(err, systeminit.LuckyError) {
-		fail.ToFail(err.Error())
+		rt.DBConnectError(err)
+		return
+	} else if err != nil {
+		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
 		return
 	}
 
@@ -27,7 +29,6 @@ func ShowNew(rt runtime.RunTime, refresh func(rt runtime.RunTime)) {
 
 	newWindow.SetOnClosed(func() {
 		rt.Action()
-		WinClose(newWindow)
 		newWindow = nil
 	})
 	newWindow.SetCloseIntercept(func() {
@@ -128,15 +129,15 @@ func ShowNew(rt runtime.RunTime, refresh func(rt runtime.RunTime)) {
 	box := container.NewVBox(upBox, gg, downCenterBox)
 	cbox := container.NewCenter(box)
 
-	bg := NewBg(max(cbox.MinSize().Width, cbox.Size().Width, 220),
-		max(cbox.MinSize().Height, cbox.Size().Height, 360))
+	bg := NewBg(fmax(cbox.MinSize().Width, cbox.Size().Width, 220),
+		fmax(cbox.MinSize().Height, cbox.Size().Height, 360))
 
 	lastContainer := container.NewStack(bg, cbox)
 
 	newWindow.SetContent(lastContainer)
-
 	newWindow.Show()
 	newWindow.CenterOnScreen()
+	newWindow.SetFixedSize(true)
 }
 
 func checkNewFile(f *model.File) error {
@@ -199,7 +200,7 @@ func newFileIDEntry4(data string, input *int64) *widget.Entry {
 	entry := widget.NewEntry()
 	entry.Text = data
 	entry.Validator = func(s string) error {
-		n, err := strconv.ParseInt(s, 0, 64)
+		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -213,7 +214,7 @@ func newFileIDEntry4(data string, input *int64) *widget.Entry {
 
 	entry.OnChanged = func(s string) {
 		if entry.Validate() == nil {
-			n, err := strconv.ParseInt(s, 64, 10)
+			n, err := strconv.ParseInt(s, 10, 64)
 			if err == nil {
 				*input = n
 			}

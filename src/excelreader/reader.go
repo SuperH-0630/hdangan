@@ -3,6 +3,7 @@ package excelreader
 import (
 	"database/sql"
 	"fmt"
+	"github.com/SuperH-0630/hdangan/src/assest"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/SuperH-0630/hdangan/src/systeminit"
@@ -120,48 +121,11 @@ const (
 	fail
 )
 
-func CreateTemplate(rt runtime.RunTime, savepath string) error {
-	var err error
-
-	f := excelize.NewFile()
-	defer func() {
-		_ = f.Close()
-	}()
-
-	sheetIndex := 0
-	sheetName := "sheet1"
-	slts := f.GetSheetList()
-	if len(slts) == 0 {
-		sheetIndex, err = f.NewSheet(sheetName)
-		if err != nil {
-			return err
-		}
-		f.SetActiveSheet(sheetIndex)
-	}
-
-	f.SetActiveSheet(sheetIndex)
-
-	for i, k := range Title {
-		err = f.SetCellStr(sheetName, fmt.Sprintf("%s1", Header[i]), k)
-		if err != nil {
-			return err
-		}
-	}
-
-	styleId, err := f.NewStyle(&excelize.Style{})
+func CreateTemplate(rt runtime.RunTime, writer io.Writer) error {
+	_, err := writer.Write(assest.TemplateXlsx.Content())
 	if err != nil {
 		return err
 	}
-
-	_ = f.SetColStyle(sheetName, Header[7], styleId)
-	_ = f.SetColStyle(sheetName, Header[8], styleId)
-	_ = f.SetColStyle(sheetName, Header[10], styleId)
-
-	err = f.SaveAs(savepath)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 

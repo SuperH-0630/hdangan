@@ -35,5 +35,14 @@ func (b *Bg) MinSize() fyne.Size {
 func (b *Bg) Size() fyne.Size {
 	mSize := b.MinSize()
 	size := b.Text.Size()
-	return fyne.NewSize(max(mSize.Width, size.Width), max(mSize.Height, size.Height))
+	return fyne.NewSize(fmax(mSize.Width, size.Width), fmax(mSize.Height, size.Height))
+}
+
+func fmax(a float32, b ...float32) float32 {
+	for _, v := range b {
+		if v > a {
+			a = v
+		}
+	}
+	return a
 }

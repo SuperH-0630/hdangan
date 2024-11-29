@@ -1,6 +1,7 @@
 package v1main
 
 import (
+	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
@@ -14,9 +15,15 @@ import (
 
 var helloWindow fyne.Window
 
-func startBtnClick(rt runtime.RunTime) {
-	ShowCtrlWindow(rt)
+func startBtnClick(rt runtime.RunTime) error {
+	err := ShowCtrlWindow(rt)
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("无法启动: %s", err.Error()), helloWindow)
+		return err
+	}
+
 	HideHelloWindow(rt)
+	return nil
 }
 
 func createHelloWindow(rt runtime.RunTime) {
@@ -41,7 +48,7 @@ func createHelloWindow(rt runtime.RunTime) {
 	welcomeStrContainerWithSpace := container.New(wboader, welcomeStrContainer)
 
 	startBtn := widget.NewButton("立刻进入", func() {
-		startBtnClick(rt)
+		_ = startBtnClick(rt)
 	})
 	startBtn.SetIcon(assest.MainIco)
 	startBtn.Resize(fyne.NewSize(200, startBtn.MinSize().Height))
@@ -59,13 +66,23 @@ func createHelloWindow(rt runtime.RunTime) {
 	boader := layout.NewBorderLayout(bTop, bBottom, nil, nil)
 	welcomeStrWithBottonWithBoader := container.New(boader, welcomeStrWithBottonAsCenter)
 
-	bg := NewBg(max(welcomeStrWithBottonWithBoader.MinSize().Width, welcomeStrWithBottonWithBoader.Size().Width, 350),
-		max(welcomeStrWithBottonWithBoader.MinSize().Height, welcomeStrWithBottonWithBoader.Size().Height, 200))
+	bg := NewBg(fmax(welcomeStrWithBottonWithBoader.MinSize().Width, welcomeStrWithBottonWithBoader.Size().Width, 350),
+		fmax(welcomeStrWithBottonWithBoader.MinSize().Height, welcomeStrWithBottonWithBoader.Size().Height, 200))
 
 	lowerContainer := container.NewStack(pic, bg, welcomeStrWithBottonWithBoader)
 
 	helloWindow.SetContent(lowerContainer)
 	helloWindow.SetMaster()
+	helloWindow.SetFixedSize(true)
+
+	helloWindow.SetOnClosed(func() {
+		rt.App().Quit()
+	})
+
+	helloWindow.SetCloseIntercept(func() {
+		helloWindow.Close()
+		rt.App().Quit()
+	})
 }
 
 func ShowHelloWindow(rt runtime.RunTime) {

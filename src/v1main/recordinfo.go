@@ -78,7 +78,6 @@ func ShowRecordInfo(rt runtime.RunTime, recordTableWindow fyne.Window, fileWindo
 
 	infoWindow.SetOnClosed(func() {
 		rt.Action()
-		WinClose(infoWindow)
 		infoWindow = nil
 	})
 	infoWindow.SetCloseIntercept(func() {
@@ -116,12 +115,13 @@ func ShowRecordInfo(rt runtime.RunTime, recordTableWindow fyne.Window, fileWindo
 	box := container.NewVBox(upBox, gg, downCenterBox)
 	cbox := container.NewCenter(box)
 
-	bg := NewBg(max(cbox.MinSize().Width, cbox.Size().Width, 500),
-		max(cbox.MinSize().Height, cbox.Size().Height, 300))
+	bg := NewBg(fmax(cbox.MinSize().Width, cbox.Size().Width, 500),
+		fmax(cbox.MinSize().Height, cbox.Size().Height, 300))
 
 	lastContainer := container.NewStack(bg, cbox)
 	infoWindow.SetContent(lastContainer)
 
 	infoWindow.Show()
 	infoWindow.CenterOnScreen()
+	infoWindow.SetFixedSize(true)
 }

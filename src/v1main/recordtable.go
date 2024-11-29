@@ -58,7 +58,7 @@ func CreateRecordTable(rt runtime.RunTime, w *RecordWindow) *RecordTable {
 	w.Table.Table.UpdateCell = func(id widget.TableCellID, object fyne.CanvasObject) {
 		l := object.(*widget.Label)
 		l.SetText(w.Table.Record.InfoDataRecord[id.Row][id.Col])
-		w.Table.Width[id.Col] = max(w.Table.Width[id.Col], l.Size().Width, l.MinSize().Width)
+		w.Table.Width[id.Col] = fmax(w.Table.Width[id.Col], l.Size().Width, l.MinSize().Width)
 		w.Table.Table.SetColumnWidth(id.Col, w.Table.Width[id.Col])
 	}
 
@@ -70,12 +70,12 @@ func CreateRecordTable(rt runtime.RunTime, w *RecordWindow) *RecordTable {
 		if id.Row == -1 {
 			l := template.(*widget.Label)
 			l.SetText(TopHeaderDataRecord[id.Col])
-			w.Table.Width[id.Col] = max(w.Table.Width[id.Col], l.Size().Width, l.MinSize().Width)
+			w.Table.Width[id.Col] = fmax(w.Table.Width[id.Col], l.Size().Width, l.MinSize().Width)
 			w.Table.Table.SetColumnWidth(id.Col, w.Table.Width[id.Col])
 		} else if id.Col == -1 {
 			l := template.(*widget.Label)
 			l.SetText(fmt.Sprintf("%02d", id.Row+1)) // 从1开始
-			w.Table.IdWidth = max(w.Table.IdWidth, l.Size().Width, l.MinSize().Width)
+			w.Table.IdWidth = fmax(w.Table.IdWidth, l.Size().Width, l.MinSize().Width)
 			w.Table.Table.SetColumnWidth(-1, w.Table.IdWidth)
 		}
 	}
@@ -86,7 +86,7 @@ func CreateRecordTable(rt runtime.RunTime, w *RecordWindow) *RecordTable {
 			if id.Row >= 0 && id.Row < len(w.Table.Record.InfoRecord) {
 				record := w.Table.Record.InfoRecord[id.Row]
 				ShowRecordInfo(rt, w.Table.Record.Window, w.Table.Record.FileWindow, w.Table.Record.File, &record, func(rt runtime.RunTime) {
-					w.Table.UpdateTableRecord(rt, 0, NowPage)
+					w.Table.UpdateTableRecord(rt, 0, w.NowPage)
 				})
 			}
 		}

@@ -37,18 +37,17 @@ func CreateRecordWindow(rt runtime.RunTime, f *model.File, fileWindow fyne.Windo
 
 	CreateRecordTable(rt, w)
 	GetMainMenuRecord(rt, w, func(rt runtime.RunTime) {
-		w.Table.UpdateTableRecord(rt, 0, NowPage)
+		w.Table.UpdateTableRecord(rt, 0, w.NowPage)
 	})
 
-	bg := NewBg(max(w.Table.Table.MinSize().Width, w.Table.Table.Size().Width, 600),
-		max(w.Table.Table.MinSize().Height, w.Table.Table.Size().Height, 400))
+	bg := NewBg(fmax(w.Table.Table.MinSize().Width, w.Table.Table.Size().Width, 600),
+		fmax(w.Table.Table.MinSize().Height, w.Table.Table.Size().Height, 400))
 
 	lastContainer := container.NewStack(bg, w.Table.Table)
 	w.Window.SetContent(lastContainer)
 
 	w.Window.SetOnClosed(func() {
 		rt.Action()
-		WinClose(w.Window)
 		w.Window = nil
 	})
 
@@ -59,6 +58,7 @@ func CreateRecordWindow(rt runtime.RunTime, f *model.File, fileWindow fyne.Windo
 	})
 
 	w.Table.FirstUpdateData(rt)
+	w.Window.SetFixedSize(true)
 	return w
 }
 

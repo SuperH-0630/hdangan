@@ -10,10 +10,6 @@ import (
 	"github.com/SuperH-0630/hdangan/src/runtime"
 )
 
-var InfoFile []model.File
-var InfoData = make([][]string, 0, 0)
-var whereInfo = model.SearchWhere{}
-
 var TopHeaderData = []string{"卷宗号", "姓名", "身份证", "户籍地", "卷宗标题", "卷宗类型", "最早迁入时间", "最后迁入（归还）时间", "迁入迁出状态", "迁出人姓名", "迁出人工作单位", "详情"}
 var xiangQingIndex = -1
 
@@ -29,17 +25,19 @@ func init() {
 	}
 }
 
-var fileTable *widget.Table
+type MainTable struct {
+	fileTable *widget.Table
+	window    *CtrlWindow
+	InfoFile  []model.File
+	InfoData  [][]string
+	whereInfo model.SearchWhere
+}
 
-func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
-	if fileTable != nil {
-		return
-	}
-
+func CreateInfoTable(rt runtime.RunTime, window *CtrlWindow) *MainTable {
 	var width = make([]float32, 12)
 	var idWidth float32 = 0
 
-	fileTable = widget.NewTableWithHeaders(
+	fileTable := widget.NewTableWithHeaders(
 		func() (rows int, cols int) {
 			return 0, 0
 		},
@@ -49,8 +47,13 @@ func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
 
 		})
 
+	m := &MainTable{
+		fileTable: fileTable,
+		window:    ctrlWindow,
+	}
+
 	fileTable.Length = func() (rows int, cols int) {
-		return len(InfoData), len(TopHeaderData)
+		return len(m.InfoData), len(TopHeaderData)
 	}
 
 	fileTable.CreateCell = func() fyne.CanvasObject {
@@ -59,8 +62,8 @@ func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
 
 	fileTable.UpdateCell = func(id widget.TableCellID, object fyne.CanvasObject) {
 		l := object.(*widget.Label)
-		l.SetText(InfoData[id.Row][id.Col])
-		width[id.Col] = max(width[id.Col], l.Size().Width, l.MinSize().Width)
+		l.SetText(m.InfoData[id.Row][id.Col])
+		width[id.Col] = fmax(width[id.Col], l.Size().Width, l.MinSize().Width)
 		fileTable.SetColumnWidth(id.Col, width[id.Col])
 	}
 
@@ -72,12 +75,12 @@ func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
 		if id.Row == -1 {
 			l := template.(*widget.Label)
 			l.SetText(TopHeaderData[id.Col])
-			width[id.Col] = max(width[id.Col], l.Size().Width, l.MinSize().Width)
+			width[id.Col] = fmax(width[id.Col], l.Size().Width, l.MinSize().Width)
 			fileTable.SetColumnWidth(id.Col, width[id.Col])
 		} else if id.Col == -1 {
 			l := template.(*widget.Label)
 			l.SetText(fmt.Sprintf("%02d", id.Row+1)) // 从1开始
-			idWidth = max(idWidth, l.Size().Width, l.MinSize().Width)
+			idWidth = fmax(idWidth, l.Size().Width, l.MinSize().Width)
 			fileTable.SetColumnWidth(-1, idWidth)
 		}
 	}
@@ -85,10 +88,10 @@ func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
 	fileTable.OnSelected = func(id widget.TableCellID) {
 		rt.Action()
 		if id.Col == xiangQingIndex {
-			if id.Row >= 0 && id.Row < len(InfoFile) {
-				file := InfoFile[id.Row]
+			if id.Row >= 0 && id.Row < len(m.InfoData) {
+				file := m.InfoFile[id.Row]
 				ShowInfo(rt, &file, func(rt runtime.RunTime) {
-					UpdateTable(rt, window, fileTable, 0, NowPage)
+					m.UpdateTable(rt, 0, window.menu.NowPage)
 				})
 			}
 		}
@@ -99,10 +102,11 @@ func CreateInfoTable(rt runtime.RunTime, window fyne.Window) {
 		rt.Action()
 	}
 
-	UpdateTable(rt, window, fileTable, 0, 1)
+	m.UpdateTable(rt, 0, 1)
+	return m
 }
 
-func UpdateTableInfo(rt runtime.RunTime, files []model.File) {
+func (m *MainTable) UpdateTableInfo(rt runtime.RunTime, files []model.File) {
 	res := make([][]string, len(files))
 
 	for i, f := range files {
@@ -122,25 +126,25 @@ func UpdateTableInfo(rt runtime.RunTime, files []model.File) {
 		res[i][11] = "点击查看"
 	}
 
-	InfoData = res
+	m.InfoData = res
 }
 
-func UpdateTable(rt runtime.RunTime, window fyne.Window, table *widget.Table, pageItemCount int, p int64) {
+func (m *MainTable) UpdateTable(rt runtime.RunTime, pageItemCount int, p int64) {
 	if pageItemCount <= 0 {
 		pageItemCount = defaultItemCount
 	}
 
-	files, pageMax, err := model.GetPageData(rt, pageItemCount, p, &whereInfo)
+	files, pageMax, err := model.GetPageData(rt, pageItemCount, p, &m.whereInfo)
 	if err != nil {
-		dialog.ShowError(fmt.Errorf("获取数据库档案信息错误。"), window)
+		dialog.ShowError(fmt.Errorf("获取数据库档案信息错误。"), m.window.window)
 		return
 	}
 
-	InfoFile = files
+	m.InfoFile = files
 
-	UpdateTableInfo(rt, files)
-	ChangePageMenuItem(rt, window, table, pageItemCount, p, pageMax, fmt.Sprintf("本页共显示数据：%d条。", len(files)))
-	table.Refresh()
+	m.UpdateTableInfo(rt, files)
+	m.window.menu.ChangePageMenuItem(rt, pageItemCount, p, pageMax, fmt.Sprintf("本页共显示数据：%d条。", len(files)))
+	m.fileTable.Refresh()
 }
 
 func timeToStr(time sql.NullTime, NWord ...string) string {

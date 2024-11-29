@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/SuperH-0630/hdangan/src/fail"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/SuperH-0630/hdangan/src/systeminit"
@@ -23,7 +22,10 @@ var whereWindow fyne.Window
 func createWindow(rt runtime.RunTime, target *model.SearchWhere, refresh func(rt runtime.RunTime)) {
 	config, err := systeminit.GetInit()
 	if errors.Is(err, systeminit.LuckyError) {
-		fail.ToFail(err.Error())
+		rt.DBConnectError(err)
+		return
+	} else if err != nil {
+		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
 		return
 	}
 
@@ -32,7 +34,6 @@ func createWindow(rt runtime.RunTime, target *model.SearchWhere, refresh func(rt
 
 	whereWindow.SetOnClosed(func() {
 		rt.Action()
-		WinClose(whereWindow)
 		whereWindow = nil
 	})
 	whereWindow.SetCloseIntercept(func() {
@@ -140,8 +141,8 @@ func createWindow(rt runtime.RunTime, target *model.SearchWhere, refresh func(rt
 	box := container.NewVBox(upBox, gg, downCenterBox)
 	cbox := container.NewCenter(box)
 
-	bg := NewBg(max(cbox.MinSize().Width, cbox.Size().Width, 600),
-		max(cbox.MinSize().Height, cbox.Size().Height, 350))
+	bg := NewBg(fmax(cbox.MinSize().Width, cbox.Size().Width, 600),
+		fmax(cbox.MinSize().Height, cbox.Size().Height, 350))
 
 	lastContainer := container.NewStack(bg, cbox)
 	whereWindow.SetContent(lastContainer)
@@ -176,14 +177,18 @@ func newEntry3(input *string) *widget.Entry {
 
 func newFileIDEntry3(input *int64) *widget.Entry {
 	entry := widget.NewEntry()
-	entry.SetText(fmt.Sprintf("%d", *input))
+	if *input <= 0 {
+		entry.Text = ""
+	} else {
+		entry.Text = fmt.Sprintf("%d", *input)
+	}
 
 	entry.Validator = func(s string) error {
-		if s == "" {
+		if len(s) == 0 {
 			return nil
 		}
 
-		n, err := strconv.ParseInt(s, 0, 64)
+		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -195,21 +200,22 @@ func newFileIDEntry3(input *int64) *widget.Entry {
 		return nil
 	}
 
-	if entry.Validate() != nil {
-		entry.SetText("")
-		*input = 0
-	}
-
 	entry.OnChanged = func(s string) {
 		if entry.Validate() == nil {
-			n, err := strconv.ParseInt(s, 64, 10)
-			if err == nil {
-				*input = n
+			if len(s) == 0 {
+				*input = 0
+			} else {
+				n, err := strconv.ParseInt(s, 10, 64)
+				if err == nil {
+					*input = n
+				} else {
+					*input = 0
+				}
 			}
 		}
 	}
 
-	entryList3 = append(entryList3, entry)
+	entryList = append(entryList, entry)
 	return entry
 }
 

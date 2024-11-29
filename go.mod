@@ -1,6 +1,6 @@
 module github.com/SuperH-0630/hdangan
 
-go 1.22
+go 1.19
 
 require (
 	fyne.io/fyne/v2 v2.5.2

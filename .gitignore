@@ -4,6 +4,7 @@ tmp
 cert
 data
 target
+fyne-cross
 
 *.exe
 *.out
