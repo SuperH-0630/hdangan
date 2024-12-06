@@ -15,13 +15,17 @@ import (
 
 func Main() {
 	start()
+	fmt.Println("TAG A")
 
 	a := happ.NewApp()
+	fmt.Println("TAG B")
 
 	rt := runtime.NewRunTime(a)
+	fmt.Println("TAG C")
 
 	err := model.AutoCreateModel(rt)
 	if err != nil {
+		fmt.Println("TAG D")
 		dbFail(rt, fmt.Sprintf("数据库构建失败: %s。", err.Error()), 1)
 		return
 	}
@@ -65,10 +69,12 @@ func dbFail(rt runtime.RunTime, res string, exitCode int) {
 		msg = fmt.Sprintf("I am sorry, that we has miss some wrong.\n%s", res)
 	}
 
+	fmt.Println(msg)
 	dialog.ShowError(fmt.Errorf("%s", msg), w1)
 
 	w1.SetContent(widget.NewLabel(""))
 	w1.CenterOnScreen()
 	w1.SetFixedSize(true)
-	w1.Show()
+	w1.ShowAndRun()
+	exit()
 }

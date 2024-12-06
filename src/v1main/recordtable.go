@@ -9,7 +9,7 @@ import (
 	"github.com/SuperH-0630/hdangan/src/runtime"
 )
 
-var TopHeaderDataRecord = []string{"发起时间", "迁入迁出状态", "迁出人", "迁出单位", "详情"}
+var TopHeaderDataRecord = []string{"发起时间", "迁入迁出状态", "借出人", "借出单位", "借入人", "借入单位", "详情"}
 var xiangQingIndexRecord = -1
 
 const defaultItemCountRecord = model.DefaultPageItemCount
@@ -108,9 +108,11 @@ func (c *RecordTable) UpdateTableInfoRecord(rt runtime.RunTime, record []model.F
 
 		res[i][0] = f.MoveTime.Format("2006-01-02 15:04:05")
 		res[i][1] = f.MoveStatus
-		res[i][2] = strToStr(f.MoveOutPeopleName, "暂无")
-		res[i][3] = strToStr(f.MoveOutPeopleUnit, "暂无")
-		res[i][4] = "点击查看"
+		res[i][2] = strToStr(f.MoveInPeopleName, "暂无")
+		res[i][3] = strToStr(f.MoveInPeopleUnit, "暂无")
+		res[i][4] = strToStr(f.MoveOutPeopleName, "暂无")
+		res[i][5] = strToStr(f.MoveOutPeopleUnit, "暂无")
+		res[i][6] = "点击查看"
 	}
 
 	c.Record.InfoRecord = record

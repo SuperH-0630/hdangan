@@ -2,7 +2,6 @@ package v1main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -12,18 +11,14 @@ import (
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/SuperH-0630/hdangan/src/systeminit"
+	datepicker "github.com/sdassow/fyne-datepicker"
 	"strconv"
+	"strings"
+	"time"
 )
 
-func ShowEdit(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime)) {
-	config, err := systeminit.GetInit()
-	if errors.Is(err, systeminit.LuckyError) {
-		rt.DBConnectError(err)
-		return
-	} else if err != nil {
-		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
-		return
-	}
+func ShowEdit(rt runtime.RunTime, fc model.File, refresh func(rt runtime.RunTime)) {
+	f := fc.GetFile()
 
 	infoWindow := rt.App().NewWindow(fmt.Sprintf("编辑信息-%s-%d", f.Name, f.FileID))
 
@@ -37,38 +32,150 @@ func ShowEdit(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 		infoWindow = nil
 	})
 
-	fileComment := widget.NewMultiLineEntry()
-	fileComment.Text = strToStr(f.FileComment, "")
-	fileComment.Wrapping = fyne.TextWrapWord
-	fileComment.OnChanged = func(text string) {
-		f.FileComment = sql.NullString{String: text, Valid: len(text) != 0}
+	comment := widget.NewMultiLineEntry()
+	comment.Text = strToStr(f.Comment, "")
+	comment.Wrapping = fyne.TextWrapWord
+	comment.OnChanged = func(s string) {
+		rt.Action()
+		comment.Text = strToStr(f.Comment, "")
+	}
+
+	material := widget.NewMultiLineEntry()
+	material.Text = strToStr(f.Comment, "")
+	material.Wrapping = fyne.TextWrapWord
+	material.OnChanged = func(s string) {
+		rt.Action()
+		material.Text = strToStr(f.Comment, "")
+	}
+
+	if !f.OldName.Valid {
+		f.OldName.String = ""
+	}
+
+	if !f.IDCard.Valid {
+		f.IDCard.String = ""
+	}
+
+	if !f.Comment.Valid {
+		f.Comment.String = ""
 	}
 
 	leftLayout := layout.NewFormLayout()
 	left := container.New(leftLayout,
-		widget.NewLabel("卷宗号："),
-		newFileIDEntry(f.FileID, &f.FileID),
-
 		widget.NewLabel("姓名："),
 		newEntry(fmt.Sprintf("%s", f.Name), &f.Name),
 
+		widget.NewLabel("曾用名："),
+		newEntryValid(fmt.Sprintf("%s", f.OldName.String), &f.OldName),
+
 		widget.NewLabel("身份证号："),
-		newEntry(fmt.Sprintf("%s", f.IDCard), &f.IDCard),
+		newEntryValid(fmt.Sprintf("%s", f.IDCard.String), &f.IDCard),
 
-		widget.NewLabel("户籍地："),
-		newEntry(fmt.Sprintf("%s", f.Location), &f.Location),
+		widget.NewLabel("性别："),
+		newSexSelect(f.IsMan, &f.IsMan),
 
-		widget.NewLabel("卷宗标题："),
-		newEntry(fmt.Sprintf("%s", f.FileTitle), &f.FileTitle),
-
-		widget.NewLabel("卷宗类型："),
-		newFileTypeSelect(fmt.Sprintf("%s", f.FileType), config.Yaml.File.FileType, &f.FileType),
+		widget.NewLabel("出生日期："),
+		newDatePicker(f.Birthday, &f.Birthday, infoWindow),
 
 		widget.NewLabel("卷宗备注："),
-		fileComment,
+		comment,
 	)
 
-	upBox := container.NewHBox(left)
+	rightDigit := make([]fyne.CanvasObject, 0, 10)
+
+	switch ff := fc.(type) {
+	case *model.FileQianRu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("旧地址："),
+			newEntry(ff.OldLocation, &ff.OldLocation),
+
+			widget.NewLabel("新地址："),
+			newEntry(ff.NewLocation, &ff.NewLocation),
+		)
+	case *model.FileChuSheng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.NewLocation, &ff.NewLocation),
+		)
+	case *model.FileQianChu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("新地址："),
+			newEntry(ff.NewLocation, &ff.NewLocation),
+		)
+	case *model.FileSiWang:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	case *model.FileBianGeng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	case *model.FileSuoNeiYiJu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	case *model.FileSuoJianYiJu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	case *model.FileNongZiZhuanFei:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	case *model.FileYiZhanShiQianYiZheng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			newFileTypeSelect(ff.Type, ff.FileSetType, &ff.Type),
+
+			widget.NewLabel("地址："),
+			newEntry(ff.Location, &ff.Location),
+		)
+	}
+
+	rightDigit = append(rightDigit,
+		widget.NewLabel("办理时间："),
+		newDatePicker(f.Time, &f.Time, infoWindow),
+
+		widget.NewLabel("备考："),
+		newFileBeiKaoSelect(f.BeiKao.String, f.FileSetType, &f.BeiKao, &f.Material, infoWindow),
+
+		widget.NewLabel("材料："),
+		material,
+	)
+
+	rightLayout := layout.NewFormLayout()
+	right := container.New(rightLayout, rightDigit...)
+
+	upBox := container.NewHBox(left, right)
 
 	save := widget.NewButton("保存", func() {
 		rt.Action()
@@ -80,7 +187,7 @@ func ShowEdit(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 		dialog.ShowConfirm("更新？", "你确定要更新嘛？", func(b bool) {
 			rt.Action()
 			if b {
-				err := model.SaveFile(f)
+				err := model.SaveFile(rt, f)
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("数据库错误: %s", err.Error()), infoWindow)
 				}
@@ -136,45 +243,24 @@ func newEntry(data string, input *string) *widget.Entry {
 	}
 
 	entryList = append(entryList, entry)
+
 	return entry
 }
 
-func newFileIDEntry(data int64, input *int64) *widget.Entry {
+func newEntryNumber(data int64, input *int64) *widget.Entry {
 	entry := widget.NewEntry()
-	if data <= 0 {
-		entry.Text = ""
-	} else {
-		entry.Text = fmt.Sprintf("%d", data)
-	}
+	entry.Text = fmt.Sprintf("%d", data)
 
 	entry.Validator = func(s string) error {
-		if len(s) == 0 {
-			return nil
-		}
-
-		n, err := strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			return err
-		}
-
-		if n <= 0 {
-			return fmt.Errorf("must bigger than zero")
-		}
-
-		return nil
+		_, err := strconv.ParseInt(s, 10, 64)
+		return err
 	}
 
 	entry.OnChanged = func(s string) {
 		if entry.Validate() == nil {
-			if len(s) == 0 {
-				*input = 0
-			} else {
-				n, err := strconv.ParseInt(s, 10, 64)
-				if err == nil {
-					*input = n
-				} else {
-					*input = 0
-				}
+			n, err := strconv.ParseInt(s, 10, 64)
+			if err == nil {
+				*input = n
 			}
 		}
 	}
@@ -183,22 +269,151 @@ func newFileIDEntry(data int64, input *int64) *widget.Entry {
 	return entry
 }
 
-func newFileTypeSelect(data string, options []string, input *string) *widget.Select {
-	func() {
-		for _, option := range options {
-			if option == data {
-				return
+func newEntryValid(data string, input *sql.NullString) *widget.Entry {
+	entry := widget.NewEntry()
+	entry.Text = data
+
+	entry.OnChanged = func(s string) {
+		if entry.Validate() == nil {
+			if len(s) == 0 {
+				*input = sql.NullString{Valid: false}
+			} else {
+				*input = sql.NullString{Valid: true, String: s}
 			}
 		}
-		options = append(options, data)
-	}()
+	}
 
-	sel := widget.NewSelect(options, func(s string) {
+	entryList = append(entryList, entry)
+	return entry
+}
+
+func newFileTypeSelect(data string, fst model.FileSetType, input *string) fyne.CanvasObject {
+	c, err := systeminit.GetInit()
+	if err != nil {
+		return newEntry(data, input)
+	}
+
+	fstName, ok := model.FileSetTypeName[fst]
+	if !ok {
+		return newEntry(data, input)
+	}
+
+	fileType, ok := c.Yaml.File.FileType[fstName]
+	if !ok {
+		return newEntry(data, input)
+	}
+
+	if !func() bool {
+		for _, t := range fileType {
+			if t == data {
+				return true
+			}
+		}
+		return false
+	}() {
+		return newEntry(data, input)
+	}
+
+	sel := widget.NewSelect(fileType, func(s string) {
 		*input = s
 	})
 
 	sel.Selected = data
 	return sel
+}
+
+func newFileBeiKaoSelect(data string, fst model.FileSetType, input *sql.NullString, materialInput *sql.NullString, w fyne.Window) fyne.CanvasObject {
+	c, err := systeminit.GetInit()
+	if err != nil {
+		return newEntryValid(data, input)
+	}
+
+	fstName, ok := model.FileSetTypeName[fst]
+	if !ok {
+		return newEntryValid(data, input)
+	}
+
+	beiKao, ok := c.Yaml.File.BeiKao[fstName]
+	if !ok {
+		return newEntryValid(data, input)
+	}
+
+	if !func() bool {
+		for _, t := range beiKao {
+			if t.Name == data {
+				return true
+			}
+		}
+		return false
+	}() {
+		return newEntryValid(data, input)
+	}
+
+	for _, i := range beiKao {
+		for _, j := range beiKao {
+			if i.Name == j.Name {
+				return newEntryValid(data, input)
+			}
+		}
+	}
+
+	beiKaoLst := make([]string, 0, len(beiKao))
+	for _, i := range beiKao {
+		beiKaoLst = append(beiKaoLst, i.Name)
+	}
+
+	sel := widget.NewSelect(beiKaoLst, func(s string) {
+		input.Valid = len(s) != 0
+		input.String = s
+
+		for _, i := range beiKao {
+			if s == i.Name && len(i.Material) != 0 {
+				dialog.ShowConfirm("确认", "此”备考“有预先录制的材料列表，是否立即使用？", func(b bool) {
+					if !b {
+						return
+					}
+
+					materialInput.Valid = true
+					materialInput.String = strings.Join(i.Material, "、") + "。"
+				}, w)
+			}
+		}
+
+	})
+
+	sel.Selected = data
+	return sel
+}
+
+func newSexSelect(data bool, isMan *bool) *widget.Select {
+	sel := widget.NewSelect([]string{"男性", "女性"}, func(s string) {
+		*isMan = s == "男性"
+	})
+
+	if data {
+		sel.Selected = "男性"
+	} else {
+		sel.Selected = "女性"
+	}
+
+	return sel
+}
+
+func newDatePicker(data time.Time, input *time.Time, w fyne.Window) *widget.Button {
+	btn := widget.NewButton("选择时间", func() {})
+
+	d := datepicker.NewDatePicker(data, time.Monday, func(t time.Time, b bool) {
+		if b {
+			*input = t
+			btn.SetText(t.Format("2006-01-02"))
+		}
+	})
+
+	btn.OnTapped = func() {
+		dialog.ShowCustomConfirm("选择时间", "确认", "放弃", d, d.OnActioned, w)
+	}
+
+	return btn
 }
 
 func checkAllInputRight() error {

@@ -11,21 +11,40 @@ import (
 	"github.com/SuperH-0630/hdangan/src/runtime"
 )
 
-func readData(rt runtime.RunTime, f *model.File) (*fyne.Container, *fyne.Container) {
-	fileComment := widget.NewMultiLineEntry()
-	fileComment.Text = strToStr(f.FileComment, "")
-	fileComment.Wrapping = fyne.TextWrapWord
-	fileComment.OnChanged = func(s string) {
+func readData(rt runtime.RunTime, fc model.File) (*fyne.Container, *fyne.Container) {
+	f := fc.GetFile()
+
+	comment := widget.NewMultiLineEntry()
+	comment.Text = strToStr(f.Comment, "")
+	comment.Wrapping = fyne.TextWrapWord
+	comment.OnChanged = func(s string) {
 		rt.Action()
-		fileComment.Text = strToStr(f.FileComment, "")
+		comment.Text = strToStr(f.Comment, "")
 	}
 
-	moveComment := widget.NewMultiLineEntry()
-	moveComment.Text = strToStr(f.MoveComment, "")
-	moveComment.Wrapping = fyne.TextWrapWord
-	moveComment.OnChanged = func(s string) {
+	material := widget.NewMultiLineEntry()
+	material.Text = strToStr(f.Material, "")
+	material.Wrapping = fyne.TextWrapWord
+	material.OnChanged = func(s string) {
 		rt.Action()
-		moveComment.Text = strToStr(f.MoveComment, "")
+		material.Text = strToStr(f.Material, "")
+	}
+
+	if !f.OldName.Valid {
+		f.OldName.String = ""
+	}
+
+	if !f.IDCard.Valid {
+		f.IDCard.String = ""
+	}
+
+	if !f.Comment.Valid {
+		f.Comment.String = ""
+	}
+
+	sex := "男性"
+	if !f.IsMan {
+		sex = "女性"
 	}
 
 	leftLayout := layout.NewFormLayout()
@@ -33,51 +52,143 @@ func readData(rt runtime.RunTime, f *model.File) (*fyne.Container, *fyne.Contain
 		widget.NewLabel("卷宗号："),
 		widget.NewLabel(fmt.Sprintf("%d", f.FileID)),
 
+		widget.NewLabel("卷宗类型："),
+		widget.NewLabel(fmt.Sprintf("%s", model.FileSetTypeName[f.FileSetType])),
+
+		widget.NewLabel("文件联合编号："),
+		widget.NewLabel(fmt.Sprintf("%d", f.FileUnionID)),
+
+		widget.NewLabel("文件编号："),
+		widget.NewLabel(fmt.Sprintf("%d", f.FileID)),
+
+		widget.NewLabel("文件组内编号："),
+		widget.NewLabel(fmt.Sprintf("%d", f.FileGroupID)),
+
 		widget.NewLabel("姓名："),
 		widget.NewLabel(fmt.Sprintf("%s", f.Name)),
+
+		widget.NewLabel("曾用名："),
+		widget.NewLabel(fmt.Sprintf("%s", f.OldName)),
 
 		widget.NewLabel("身份证号："),
 		widget.NewLabel(fmt.Sprintf("%s", f.IDCard)),
 
-		widget.NewLabel("户籍地："),
-		widget.NewLabel(fmt.Sprintf("%s", f.Location)),
+		widget.NewLabel("性别："),
+		widget.NewLabel(fmt.Sprintf("%s", sex)),
 
-		widget.NewLabel("卷宗标题："),
-		widget.NewLabel(fmt.Sprintf("%s", f.FileTitle)),
-
-		widget.NewLabel("卷宗类型："),
-		widget.NewLabel(fmt.Sprintf("%s", f.FileType)),
+		widget.NewLabel("出生日期："),
+		widget.NewLabel(fmt.Sprintf("%s", f.Birthday.Format("2006-01-02"))),
 
 		widget.NewLabel("卷宗备注："),
-		fileComment,
+		comment,
+	)
+
+	rightDigit := make([]fyne.CanvasObject, 0, 10)
+
+	switch ff := fc.(type) {
+	case *model.FileQianRu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("旧地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.OldLocation)),
+
+			widget.NewLabel("新地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.NewLocation)),
+		)
+	case *model.FileChuSheng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.NewLocation)),
+		)
+	case *model.FileQianChu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("新地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.NewLocation)),
+		)
+	case *model.FileSiWang:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	case *model.FileBianGeng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	case *model.FileSuoNeiYiJu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	case *model.FileSuoJianYiJu:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	case *model.FileNongZiZhuanFei:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	case *model.FileYiZhanShiQianYiZheng:
+		rightDigit = append(rightDigit,
+			widget.NewLabel("类型："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Type)),
+
+			widget.NewLabel("旧地址："),
+			widget.NewLabel(fmt.Sprintf("%s", ff.Location)),
+		)
+	}
+
+	rightDigit = append(rightDigit,
+		widget.NewLabel("人数："),
+		widget.NewLabel(fmt.Sprintf("%d", f.PeopleCount)),
+
+		widget.NewLabel("办理时间："),
+		widget.NewLabel(fmt.Sprintf("%s", f.Time.Format("2006-01-02 15:04:05"))),
+
+		widget.NewLabel("页码："),
+		widget.NewLabel(fmt.Sprintf("%d-%d（共%d页）", f.PageStart, f.PageEnd, f.PageCount)),
+
+		widget.NewLabel("备考："),
+		widget.NewLabel(fmt.Sprintf("%s", f.BeiKao.String)),
+
+		widget.NewLabel("材料："),
+		material,
 	)
 
 	rightLayout := layout.NewFormLayout()
-	right := container.New(rightLayout,
-		widget.NewLabel("最早迁入时间："),
-		widget.NewLabel(fmt.Sprintf("%s", f.FirstMoveIn.Format("2006-01-02 15:04:05"))),
-
-		widget.NewLabel("最后迁入时间："),
-		widget.NewLabel(fmt.Sprintf("%s", f.LastMoveIn.Format("2006-01-02 15:04:05"))),
-
-		widget.NewLabel("最后迁入迁出时间："),
-		widget.NewLabel(fmt.Sprintf("%s", f.MoveStatus)),
-
-		widget.NewLabel("最后迁出人："),
-		widget.NewLabel(fmt.Sprintf("%s", strToStr(f.MoveOutPeopleName, "暂无"))),
-
-		widget.NewLabel("最后迁出单位："),
-		widget.NewLabel(fmt.Sprintf("%s", strToStr(f.MoveOutPeopleUnit, "暂无"))),
-
-		widget.NewLabel("最后迁出备注："),
-		moveComment,
-	)
+	right := container.New(rightLayout, rightDigit...)
 
 	return left, right
 }
 
-func ShowInfo(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime)) {
-	infoWindow := rt.App().NewWindow(fmt.Sprintf("详细信息-%s-%d", f.Name, f.FileID))
+func ShowInfo(rt runtime.RunTime, f model.File, refresh func(rt runtime.RunTime)) {
+	fc := f.GetFile()
+	infoWindow := rt.App().NewWindow(fmt.Sprintf("详细信息-%s-%d", fc.Name, fc.FileID))
 
 	infoWindow.SetOnClosed(func() {
 		rt.Action()
@@ -107,9 +218,9 @@ func ShowInfo(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 		ShowEdit(rt, f, warpRefresh)
 	})
 
-	move := widget.NewButton("迁入迁出", func() {
+	move := widget.NewButton("出借档案", func() {
 		rt.Action()
-		ShowMove(rt, f, warpRefresh)
+		ShowNewMove(rt, f, warpRefresh)
 	})
 
 	record := widget.NewButton("查看迁入迁出记录", func() {
@@ -123,7 +234,7 @@ func ShowInfo(rt runtime.RunTime, f *model.File, refresh func(rt runtime.RunTime
 		rt.Action()
 		dialog.ShowConfirm("删除提示", "请问是否删除此条档案记录，删除后恢复可能较为苦难。", func(b bool) {
 			if b {
-				err := model.DeleteFile(f)
+				err := model.DeleteFile(rt, fc)
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("数据库错误: %s", err.Error()), infoWindow)
 				}

@@ -5,7 +5,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"github.com/SuperH-0630/hdangan/src/aboutme"
-	"github.com/SuperH-0630/hdangan/src/excelreader"
+	"github.com/SuperH-0630/hdangan/src/excelio"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"os"
@@ -16,6 +16,7 @@ type MainMenu struct {
 	Window  *CtrlWindow
 	Main    *fyne.MainMenu
 	Page    *fyne.Menu
+	FileSet *fyne.Menu
 	NowPage int64
 }
 
@@ -73,12 +74,20 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 
 	newFile := fyne.NewMenuItem("新建档案", func() {
 		rt.Action()
-		ShowNew(rt, refresh)
+		ShowNew(rt, w, refresh)
 	})
 
 	exclFile := fyne.NewMenuItem("模板导入", func() {
 		rt.Action()
-		err := AddFromFile(rt, w.window, refresh)
+		err := AddFromFile(rt, w, refresh)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("导入失败：%s", err.Error()), w.window)
+		}
+	})
+
+	exclRecordFile := fyne.NewMenuItem("模板导入（借出记录）", func() {
+		rt.Action()
+		err := AddRecordFromFile(rt, w, refresh)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("导入失败：%s", err.Error()), w.window)
 		}
@@ -102,7 +111,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.CreateTemplate(rt, writer)
+			err = excelio.CreateTemplate(rt, writer)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("模板保存失败：%s", err), w.window)
 			}
@@ -114,7 +123,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 
 	tj := fyne.NewMenuItem("数据统计", func() {
 		rt.Action()
-		TongJi(rt, w.window)
+		TongJi(rt, w)
 	})
 
 	outputAll := fyne.NewMenuItem("导出全部档案", func() {
@@ -137,7 +146,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFile(rt, savepath, []model.File{}, nil)
+			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, nil, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -169,7 +178,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFile(rt, savepath, []model.File{}, &wm.Window.table.whereInfo)
+			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, nil, &wm.Window.table.whereInfo)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -201,7 +210,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFile(rt, savepath, wm.Window.table.InfoFile, nil)
+			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, wm.Window.table.InfoFile, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -233,7 +242,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, nil, nil, nil)
+			err = excelio.OutputFileRecord(rt, savepath, nil, nil, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -266,7 +275,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 					dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 				}
 
-				err = excelreader.OutputFileRecord(rt, savepath, nil, nil, &s.SearchRecord)
+				err = excelio.OutputFileRecord(rt, savepath, nil, nil, &s.SearchRecord)
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 				} else {
@@ -280,7 +289,8 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 		ww.Show(rt)
 	})
 
-	xitong := fyne.NewMenu("系统", newFile, exclFile, template, aboutMe, quit)
+	xitong := fyne.NewMenu("系统", newFile, exclFile, exclRecordFile, template, aboutMe, quit)
+	wm.FileSet = fyne.NewMenu("档案类型")
 	peizhi := fyne.NewMenu("配置", initFile, openFile, saveFile, copyFile)
 	sousuo := fyne.NewMenu("搜索", search)
 	wm.Page = fyne.NewMenu("分页")
@@ -289,6 +299,39 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 
 	wm.Main = fyne.NewMainMenu(xitong, peizhi, sousuo, wm.Page, tongji, caidan)
 	return wm
+}
+
+func (m *MainMenu) ChangeFileSetModelItem(rt runtime.RunTime, pageItemCount int, message string) {
+	setFileList := make([]*fyne.MenuItem, 0, len(model.FileSetTypeList))
+
+	for _, t := range model.FileSetTypeList {
+		name, ok := model.FileSetTypeName[t]
+		if !ok {
+			continue
+		}
+
+		if t == m.Window.table.fileSetType {
+			name += "（当前）"
+			setFileList = append(setFileList, fyne.NewMenuItem(name, func() {
+				dialog.ShowConfirm("是否需要重载？", message, func(b bool) {
+					rt.Action()
+					if !b {
+						return
+					}
+					m.Window.table.UpdateTable(rt, t, pageItemCount, m.NowPage)
+				}, m.Window.window)
+			}))
+		} else {
+			setFileList = append(setFileList, fyne.NewMenuItem(name, func() {
+				rt.Action()
+				m.Window.table.UpdateTable(rt, t, pageItemCount, 1)
+			}))
+		}
+	}
+
+	m.FileSet.Items = setFileList
+	m.FileSet.Refresh()
+	m.Main.Refresh()
 }
 
 func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p int64, pageMax int64, message string) {
@@ -313,14 +356,14 @@ func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p i
 						if !b {
 							return
 						}
-						m.Window.table.UpdateTable(rt, pageItemCount, i)
+						m.Window.table.UpdateTable(rt, m.Window.table.fileSetType, pageItemCount, i)
 					}, m.Window.window)
 				})
 				pageList = append(pageList, m)
 			} else {
 				pageList = append(pageList, fyne.NewMenuItem(fmt.Sprintf("第%d页", i), func() {
 					rt.Action()
-					m.Window.table.UpdateTable(rt, pageItemCount, i)
+					m.Window.table.UpdateTable(rt, m.Window.table.fileSetType, pageItemCount, i)
 				}))
 			}
 		}

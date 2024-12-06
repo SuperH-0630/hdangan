@@ -57,22 +57,28 @@ func (w *WhereWindow) create(rt runtime.RunTime) {
 
 	leftLayout := layout.NewFormLayout()
 	left := container.New(leftLayout,
-		widget.NewLabel("最早迁出时间（含）："),
+		widget.NewLabel("借出状态："),
+		newSelect5(config.Yaml.Move.MoveStatus, &s.MoveStatus),
+
+		widget.NewLabel("出借时间（始，含）："),
 		newTimePicker5(&s.MoveOutStart, w.Window),
 
-		widget.NewLabel("最晚迁出时间（含）："),
+		widget.NewLabel("出借时间（终，含）："),
 		newTimePicker5(&s.MoveOutEnd, w.Window),
 	)
 
 	rightLayout := layout.NewFormLayout()
 	right := container.New(rightLayout,
-		widget.NewLabel("迁入迁出状态："),
-		newSelect5(config.Yaml.Move.MoveStatus, &s.MoveStatus),
-
-		widget.NewLabel("最后迁出人："),
+		widget.NewLabel("借出人："),
 		newEntry5(&s.MoveOutPeopleName),
 
-		widget.NewLabel("最后迁出单位："),
+		widget.NewLabel("借出单位："),
+		newSelect5(config.Yaml.Move.MoveUnit, &s.MoveOutPeopleUnit),
+
+		widget.NewLabel("借入人："),
+		newEntry5(&s.MoveOutPeopleName),
+
+		widget.NewLabel("借入单位："),
 		newSelect5(config.Yaml.Move.MoveUnit, &s.MoveOutPeopleUnit),
 	)
 
@@ -185,7 +191,7 @@ func newFileIDEntry5(input *int64) *widget.Entry {
 
 	entry.OnChanged = func(s string) {
 		if entry.Validate() == nil {
-			n, err := strconv.ParseInt(s, 64, 10)
+			n, err := strconv.ParseInt(s, 10, 64)
 			if err == nil {
 				*input = n
 			}

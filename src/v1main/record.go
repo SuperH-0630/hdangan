@@ -13,15 +13,17 @@ type RecordWindow struct {
 	Menu           *Controller
 	Table          *RecordTable
 	FileWindow     fyne.Window
-	File           *model.File
+	File           model.File
 	NowPage        int64
 	InfoRecord     []model.FileMoveRecord
 	InfoDataRecord [][]string
 	SearchRecord   model.SearchRecord
 }
 
-func CreateRecordWindow(rt runtime.RunTime, f *model.File, fileWindow fyne.Window) *RecordWindow {
-	recordWindow := rt.App().NewWindow(fmt.Sprintf("档案迁移记录-%d", f.FileID))
+func CreateRecordWindow(rt runtime.RunTime, fc model.File, fileWindow fyne.Window) *RecordWindow {
+	f := fc.GetFile()
+
+	recordWindow := rt.App().NewWindow(fmt.Sprintf("档案出借记录-%d", f.FileID))
 	w := &RecordWindow{
 		Window: recordWindow,
 

@@ -18,7 +18,7 @@ type CtrlWindow struct {
 
 var ctrlWindow *CtrlWindow
 
-func newWindow(rt runtime.RunTime, title string, killSecond time.Duration) *CtrlWindow {
+func newCtrlWindow(rt runtime.RunTime, title string, killSecond time.Duration) *CtrlWindow {
 	ks := killSecond * time.Second
 	cw := &CtrlWindow{
 		window:   rt.App().NewWindow(title),
@@ -27,16 +27,17 @@ func newWindow(rt runtime.RunTime, title string, killSecond time.Duration) *Ctrl
 		rt:       rt,
 	}
 
-	cw.window.SetOnClosed(func() {
-		ctrlWindow = nil
-		ShowHelloWindow(rt)
+	rt.SetDBConnectErrorWindow(cw.window)
+	rt.SetAction(func() {
+		cw.Action()
 	})
 
-	cw.window.SetCloseIntercept(func() {
-		WinClose(ctrlWindow.window)
-		ctrlWindow = nil
-		ShowHelloWindow(rt)
+	cw.menu = getMainMenu(rt, cw, func(rt runtime.RunTime) {
+		cw.table.UpdateTable(rt, cw.table.fileSetType, 0, cw.menu.NowPage)
 	})
+	cw.window.SetMainMenu(cw.menu.Main)
+
+	cw.table = CreateInfoTable(rt, cw)
 
 	return cw
 }
@@ -86,18 +87,18 @@ func createCtrlWindow(rt runtime.RunTime) error {
 		return nil
 	}
 
-	ctrlWindow = newWindow(rt, "桓档案-控制中心", 15*60)
-	rt.SetDBConnectErrorWindow(ctrlWindow.window)
-	rt.SetAction(func() {
-		ctrlWindow.Action()
+	ctrlWindow = newCtrlWindow(rt, "桓档案-控制中心", 15*60)
+
+	ctrlWindow.window.SetOnClosed(func() {
+		ctrlWindow = nil
+		ShowHelloWindow(rt)
 	})
 
-	ctrlWindow.menu = getMainMenu(rt, ctrlWindow, func(rt runtime.RunTime) {
-		ctrlWindow.table.UpdateTable(rt, 0, ctrlWindow.menu.NowPage)
+	ctrlWindow.window.SetCloseIntercept(func() {
+		WinClose(ctrlWindow.window)
+		ctrlWindow = nil
+		ShowHelloWindow(rt)
 	})
-	ctrlWindow.window.SetMainMenu(ctrlWindow.menu.Main)
-
-	ctrlWindow.table = CreateInfoTable(rt, ctrlWindow)
 
 	bg := NewBg(fmax(ctrlWindow.table.fileTable.MinSize().Width, ctrlWindow.table.fileTable.Size().Width, 800),
 		fmax(ctrlWindow.table.fileTable.MinSize().Height, ctrlWindow.table.fileTable.Size().Height, 500))

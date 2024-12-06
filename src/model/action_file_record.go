@@ -1,7 +1,9 @@
 package model
 
 import (
+	"database/sql"
 	"errors"
+	"fmt"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"gorm.io/gorm"
 )
@@ -29,6 +31,14 @@ func SetRecord(tx *gorm.DB, s *SearchRecord) *gorm.DB {
 
 	if s.MoveOutPeopleUnit != "" {
 		tx = tx.Where("moveoutpeopleunit LIKE ?", likeValue(s.MoveOutPeopleUnit))
+	}
+
+	if s.MoveInPeopleName != "" {
+		tx = tx.Where("moveinpeoplename LIKE ?", likeValue(s.MoveInPeopleName))
+	}
+
+	if s.MoveInPeopleUnit != "" {
+		tx = tx.Where("moveinpeopleunit LIKE ?", likeValue(s.MoveInPeopleUnit))
 	}
 
 	return tx
@@ -79,10 +89,12 @@ func PageChoiceOffsetRecord(rt runtime.RunTime, fid int64, pageItemCount int, pa
 	return (page - 1) * int64(pageItemCount), pageItemCount, pageMax, nil
 }
 
-func GetPageDataRecord(rt runtime.RunTime, file *File, pageItemCount int, page int64, s *SearchRecord) ([]FileMoveRecord, int64, error) {
+func GetPageDataRecord(rt runtime.RunTime, f File, pageItemCount int, page int64, s *SearchRecord) ([]FileMoveRecord, int64, error) {
 	if pageItemCount <= 0 {
 		pageItemCount = DefaultPageItemCount
 	}
+
+	file := f.GetFile()
 
 	db, err := GetDB(rt)
 	if err != nil {
@@ -102,25 +114,16 @@ func GetPageDataRecord(rt runtime.RunTime, file *File, pageItemCount int, page i
 	return res, pageMax, nil
 }
 
-func FindFileRecord(recordID int64) *FileMoveRecord {
-	var res FileMoveRecord
-	err := db.Model(FileMoveRecord{}).Preload("File").Select("id = ?", recordID).Order("movetime desc, id desc").First(&res).Error
-	if err != nil {
-		return nil
-	}
-	return &res
-}
-
-func GetAllFileRecord(rt runtime.RunTime, f *File, s *SearchRecord) ([]FileMoveRecord, error) {
+func GetAllRecord(rt runtime.RunTime, fc File, s *SearchRecord) ([]FileMoveRecord, error) {
 	db, err := GetDB(rt)
 	if err != nil {
 		return nil, err
 	}
 
 	var res []FileMoveRecord
-	tx := SetRecord(db.Model(&FileMoveRecord{}), s).Preload("File")
-	if f != nil {
-		tx = tx.Where("filesqlid = ?", f.ID)
+	tx := SetRecord(db.Model(&FileMoveRecord{}), s)
+	if fc != nil {
+		tx = tx.Where("fileunionid = ?", fc.GetFile().FileUnionID)
 	}
 	err = tx.Order("movetime desc, id desc").Find(&res).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -132,15 +135,125 @@ func GetAllFileRecord(rt runtime.RunTime, f *File, s *SearchRecord) ([]FileMoveR
 	return res, nil
 }
 
-func CheckFileMoveOut(f *File) (*FileMoveRecord, bool) {
+func CheckFileMoveOut(rt runtime.RunTime, fc File) (*FileMoveRecord, bool) {
+	f := fc.GetFile()
+
 	if !f.LastMoveRecordID.Valid {
 		return nil, false
 	}
 
-	record, err := FindMoveRecord(f)
+	record, err := FindMoveRecord(rt, fc)
 	if err != nil {
 		return nil, false
 	}
 
 	return record, true
+}
+
+func FindMoveRecord(rt runtime.RunTime, fc File) (*FileMoveRecord, error) {
+	db, err := GetDB(rt)
+	if err != nil {
+		return nil, err
+	}
+
+	f := fc.GetFile()
+
+	if !f.LastMoveRecordID.Valid || f.LastMoveRecordID.Int64 <= 0 {
+		return nil, FileMoveRecordNotFound
+	}
+
+	var res FileMoveRecord
+	err = db.Model(&FileMoveRecord{}).Where("id = ?", f.LastMoveRecordID).First(&res).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, FileMoveRecordNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+func FindRecord(rt runtime.RunTime, recordID int64) (*FileMoveRecord, error) {
+	db, err := GetDB(rt)
+	if err != nil {
+		return nil, err
+	}
+
+	var res FileMoveRecord
+	err = db.Model(&FileMoveRecord{}).Where("id = ?", recordID).First(&res).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, FileMoveRecordNotFound
+	} else if err != nil {
+		return nil, err
+	}
+
+	return &res, nil
+}
+
+func SaveRecord(rt runtime.RunTime, r *FileMoveRecord) error {
+	db, err := GetDB(rt)
+	if err != nil {
+		return err
+	}
+
+	return db.Save(r).Error
+}
+
+func CreateFileRecord(rt runtime.RunTime, fc File, record *FileMoveRecord) error {
+	db, err := GetDB(rt)
+	if err != nil {
+		return err
+	}
+
+	f := fc.GetFile()
+	if f.ID <= 0 {
+		return fmt.Errorf("file not save")
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		var file1 FileAbs
+		var oldRecord *FileMoveRecord
+
+		oldRecord, err := FindMoveRecord(rt, fc)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			oldRecord = nil
+		} else {
+			return err
+		}
+
+		err = tx.Where("fileunionid = ?", f.FileUnionID).Order("filegroupid asc").First(&file1).Error
+		err = tx.Save(record).Error
+		if err != nil {
+			return err
+		}
+
+		record.FileSetSQLID = file1.FileSetSQLID
+		record.FileSetID = file1.FileSetID
+		record.FileSetType = file1.FileSetType
+
+		record.FileSQLID = int64(file1.ID)
+		record.FileUnionID = int64(file1.ID)
+
+		if oldRecord != nil {
+			record.UpRecord = sql.NullInt64{Valid: true, Int64: int64(oldRecord.ID)}
+		}
+		err = tx.Save(record).Error
+		if err != nil {
+			return err
+		}
+
+		err = tx.Update("lastmoverecordid", sql.NullInt64{Valid: true, Int64: int64(record.ID)}).Where("fileunionid = ?", file1.FileUnionID).Error
+		if err != nil {
+			return err
+		}
+
+		if oldRecord != nil {
+			oldRecord.NextRecord = sql.NullInt64{Valid: true, Int64: int64(record.ID)}
+			err = tx.Save(oldRecord).Error
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }

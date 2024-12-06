@@ -10,5 +10,7 @@ func AutoCreateModel(rt runtime.RunTime) error {
 		return err
 	}
 
-	return db.AutoMigrate(&File{}, &FileMoveRecord{})
+	return db.AutoMigrate(&FileSet{}, &FileQianRu{}, &FileChuSheng{}, &FileQianChu{}, &FileSiWang{},
+		&FileBianGeng{}, &FileSuoNeiYiJu{}, &FileSuoJianYiJu{}, &FileNongZiZhuanFei{},
+		&FileYiZhanShiQianYiZheng{}, &FileMoveRecord{})
 }

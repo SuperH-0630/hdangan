@@ -5,26 +5,18 @@ import (
 )
 
 type SearchWhere struct {
-	Name      string
-	IDCard    string
-	Location  string
-	FileID    int64
-	FileTitle string
-	FileType  string
+	Name          string
+	OldName       string
+	IDCard        string
+	IsMan         string
+	BirthdayStart sql.NullTime
+	BirthdayEnd   sql.NullTime
+	Comment       string
 
-	FirstMoveInStart sql.NullTime
-	FirstMoveInEnd   sql.NullTime
-
-	LastMoveInStart sql.NullTime
-	LastMoveInEnd   sql.NullTime
-
-	LastMoveOutStart sql.NullTime
-	LastMoveOutEnd   sql.NullTime
-
-	MoveStatus string
-
-	MoveOutPeopleName string
-	MoveOutPeopleUnit string
+	FileSetID   int64
+	FileUnionID int64
+	FileID      int64
+	FileGroupID int64
 }
 
 type SearchRecord struct {
@@ -34,4 +26,6 @@ type SearchRecord struct {
 	MoveStatus        string
 	MoveOutPeopleName string
 	MoveOutPeopleUnit string
+	MoveInPeopleName  string
+	MoveInPeopleUnit  string
 }

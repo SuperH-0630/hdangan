@@ -70,21 +70,52 @@ func (m *Move) init() error {
 	return nil
 }
 
+type BeiKao struct {
+	Name     string   `yaml:"name"`
+	Material []string `yaml:"material"`
+}
+
+func (f *BeiKao) init() error {
+	if len(f.Name) == 0 {
+		return fmt.Errorf("not name")
+	}
+	return nil
+}
+
 type File struct {
-	FileType []string `yaml:"fileType"`
+	FileType map[string][]string `yaml:"fileType"`
+	BeiKao   map[string][]BeiKao `yaml:"beiKao"`
 }
 
 func (f *File) init() error {
-	if len(f.FileType) == 0 {
-		f.FileType = append(f.FileType, "常规")
+	for _, s := range f.BeiKao {
+		for _, i := range s {
+			err := i.init()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+type FileSet struct {
+	MaxFilePage int64 `yaml:"maxFilePage"`
+}
+
+func (f *FileSet) init() error {
+	if f.MaxFilePage <= 0 {
+		f.MaxFilePage = 75
 	}
 	return nil
 }
 
 type Init struct {
-	Report Report `yaml:"report"`
-	Move   Move   `yaml:"move"`
-	File   File   `yaml:"file"`
+	Report  Report  `yaml:"report"`
+	Move    Move    `yaml:"move"`
+	File    File    `yaml:"file"`
+	FileSet FileSet `yaml:"fileSet"`
 }
 
 func (i *Init) init() (err error) {
@@ -99,6 +130,11 @@ func (i *Init) init() (err error) {
 	}
 
 	err = i.File.init()
+	if err != nil {
+		return err
+	}
+
+	err = i.FileSet.init()
 	if err != nil {
 		return err
 	}
@@ -200,10 +236,9 @@ func GetInit() (InitConfig, error) {
 						"三中队",
 					},
 				},
-				File: File{
-					FileType: []string{
-						"常规",
-					},
+				File: File{},
+				FileSet: FileSet{
+					MaxFilePage: 75,
 				},
 			},
 			HomeDir:   homeDir,

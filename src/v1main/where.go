@@ -2,7 +2,6 @@ package v1main
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -11,7 +10,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
-	"github.com/SuperH-0630/hdangan/src/systeminit"
 	datepicker "github.com/sdassow/fyne-datepicker"
 	"strconv"
 	"time"
@@ -20,15 +18,6 @@ import (
 var whereWindow fyne.Window
 
 func createWindow(rt runtime.RunTime, target *model.SearchWhere, refresh func(rt runtime.RunTime)) {
-	config, err := systeminit.GetInit()
-	if errors.Is(err, systeminit.LuckyError) {
-		rt.DBConnectError(err)
-		return
-	} else if err != nil {
-		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
-		return
-	}
-
 	var s = *target
 	whereWindow = rt.App().NewWindow(fmt.Sprintf("搜索筛选"))
 
@@ -50,53 +39,41 @@ func createWindow(rt runtime.RunTime, target *model.SearchWhere, refresh func(rt
 		widget.NewLabel("姓名："),
 		newEntry3(&s.Name),
 
+		widget.NewLabel("曾用名："),
+		newEntry3(&s.Name),
+
 		widget.NewLabel("身份证号："),
 		newEntry3(&s.IDCard),
 
-		widget.NewLabel("户籍地："),
-		newEntry3(&s.Location),
+		widget.NewLabel("性别："),
+		newSexSelect2(&s.IsMan),
 
-		widget.NewLabel("卷宗标题："),
-		newEntry3(&s.FileTitle),
+		widget.NewLabel("生日（始，含）"),
+		newDatePicker3(&s.BirthdayStart, whereWindow),
 
-		widget.NewLabel("卷宗类型："),
-		newSelect3(config.Yaml.File.FileType, &s.FileType),
-	)
+		widget.NewLabel("生日（终，含）"),
+		newDatePicker3(&s.BirthdayEnd, whereWindow),
 
-	centerLayout := layout.NewFormLayout()
-	center := container.New(centerLayout,
-		widget.NewLabel("最早第一次迁入时间（含）："),
-		newTimePicker3(&s.FirstMoveInStart, whereWindow),
-
-		widget.NewLabel("最晚第一次迁入时间（含）："),
-		newTimePicker3(&s.FirstMoveInStart, whereWindow),
-
-		widget.NewLabel("最早最后一次迁入（归还）时间（含）："),
-		newTimePicker3(&s.LastMoveInStart, whereWindow),
-
-		widget.NewLabel("最晚最后一次迁入（归还）时间（含）："),
-		newTimePicker3(&s.LastMoveInEnd, whereWindow),
-
-		widget.NewLabel("最早最后一次迁出时间（含）："),
-		newTimePicker3(&s.LastMoveOutStart, whereWindow),
-
-		widget.NewLabel("最晚最后一次迁出时间（含）："),
-		newTimePicker3(&s.LastMoveOutEnd, whereWindow),
+		widget.NewLabel("备注："),
+		newEntry3(&s.Comment),
 	)
 
 	rightLayout := layout.NewFormLayout()
 	right := container.New(rightLayout,
-		widget.NewLabel("迁入迁出状态："),
-		newSelect3(config.Yaml.Move.MoveStatus, &s.MoveStatus),
+		widget.NewLabel("卷宗ID："),
+		newFileIDEntry3(&s.FileSetID),
 
-		widget.NewLabel("最后迁出人："),
-		newEntry3(&s.MoveOutPeopleName),
+		widget.NewLabel("文件联合ID："),
+		newFileIDEntry3(&s.FileUnionID),
 
-		widget.NewLabel("最后迁出单位："),
-		newSelect3(config.Yaml.Move.MoveUnit, &s.MoveOutPeopleUnit),
+		widget.NewLabel("文件ID："),
+		newFileIDEntry3(&s.FileID),
+
+		widget.NewLabel("组ID："),
+		newFileIDEntry3(&s.FileGroupID),
 	)
 
-	upBox := container.NewHBox(left, center, right)
+	upBox := container.NewHBox(left, right)
 
 	save := widget.NewButton("保存条件", func() {
 		rt.Action()
@@ -215,7 +192,7 @@ func newFileIDEntry3(input *int64) *widget.Entry {
 		}
 	}
 
-	entryList = append(entryList, entry)
+	entryList3 = append(entryList3, entry)
 	return entry
 }
 
@@ -265,6 +242,16 @@ func checkAllInputRight3() error {
 
 	return nil
 }
+
+func newSexSelect2(isMan *string) *widget.Select {
+	sel := widget.NewSelect([]string{"男性", "女性", "均可"}, func(s string) {
+		*isMan = s
+	})
+
+	sel.Selected = "均可"
+	return sel
+}
+
 func newTimePicker3(input *sql.NullTime, w fyne.Window) *widget.Button {
 	btn := widget.NewButton("选择时间", func() {})
 
@@ -274,6 +261,32 @@ func newTimePicker3(input *sql.NullTime, w fyne.Window) *widget.Button {
 	}
 
 	d := datepicker.NewDateTimePicker(t, time.Monday, func(t time.Time, b bool) {
+		if b {
+			input.Valid = true
+			input.Time = t
+			btn.SetText(t.Format("2006-01-02 15:04:05"))
+		} else {
+			input.Valid = false
+			btn.SetText("选择时间")
+		}
+	})
+
+	btn.OnTapped = func() {
+		dialog.ShowCustomConfirm("选择时间", "确认", "放弃", d, d.OnActioned, w)
+	}
+
+	return btn
+}
+
+func newDatePicker3(input *sql.NullTime, w fyne.Window) *widget.Button {
+	btn := widget.NewButton("选择时间", func() {})
+
+	t := time.Now()
+	if input.Valid {
+		t = input.Time
+	}
+
+	d := datepicker.NewDatePicker(t, time.Monday, func(t time.Time, b bool) {
 		if b {
 			input.Valid = true
 			input.Time = t

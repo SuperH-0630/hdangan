@@ -10,15 +10,15 @@ import (
 	"path"
 )
 
-var db *gorm.DB
+var _db *gorm.DB
 
 var gormConfig = &gorm.Config{}
 
 func startDriver(rt runtime.RunTime) (*gorm.DB, error) {
 	var err error
 
-	if db != nil {
-		return db, nil
+	if _db != nil {
+		return _db, nil
 	}
 
 	initConfig, err := systeminit.GetInit()
@@ -32,20 +32,15 @@ func startDriver(rt runtime.RunTime) (*gorm.DB, error) {
 
 	dbPath := path.Join(initConfig.HomeDir, "data.db")
 
-	db, err = gorm.Open(sqlite.Open(dbPath), gormConfig)
+	_db, err = gorm.Open(sqlite.Open(dbPath), gormConfig)
 	if err != nil {
 		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
 		return nil, fmt.Errorf("数据库链接错误： %s", err.Error())
 	}
 
-	return db, nil
+	return _db, nil
 }
 
 func GetDB(rt runtime.RunTime) (*gorm.DB, error) {
 	return startDriver(rt)
-}
-
-func StopDB(rt runtime.RunTime) {
-	if db != nil {
-	}
 }

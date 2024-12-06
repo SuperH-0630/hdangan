@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"github.com/SuperH-0630/hdangan/src/excelreader"
+	"github.com/SuperH-0630/hdangan/src/excelio"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"strings"
@@ -51,7 +51,7 @@ func GetMainMenuRecord(rt runtime.RunTime, w *RecordWindow, refresh func(rt runt
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.Window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, w.File, []model.FileMoveRecord{}, nil)
+			err = excelio.OutputFileRecord(rt, savepath, w.File, []model.FileMoveRecord{}, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.Window)
 			} else {
@@ -83,7 +83,7 @@ func GetMainMenuRecord(rt runtime.RunTime, w *RecordWindow, refresh func(rt runt
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.Window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, w.File, []model.FileMoveRecord{}, &w.SearchRecord)
+			err = excelio.OutputFileRecord(rt, savepath, w.File, []model.FileMoveRecord{}, &w.SearchRecord)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.Window)
 			} else {
@@ -115,7 +115,7 @@ func GetMainMenuRecord(rt runtime.RunTime, w *RecordWindow, refresh func(rt runt
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.Window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, nil, []model.FileMoveRecord{}, nil)
+			err = excelio.OutputFileRecord(rt, savepath, nil, []model.FileMoveRecord{}, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.Window)
 			} else {
@@ -147,7 +147,7 @@ func GetMainMenuRecord(rt runtime.RunTime, w *RecordWindow, refresh func(rt runt
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.Window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, nil, []model.FileMoveRecord{}, &w.SearchRecord)
+			err = excelio.OutputFileRecord(rt, savepath, nil, []model.FileMoveRecord{}, &w.SearchRecord)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.Window)
 			} else {
@@ -179,7 +179,7 @@ func GetMainMenuRecord(rt runtime.RunTime, w *RecordWindow, refresh func(rt runt
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.Window)
 			}
 
-			err = excelreader.OutputFileRecord(rt, savepath, w.File, w.InfoRecord, nil)
+			err = excelio.OutputFileRecord(rt, savepath, w.File, w.InfoRecord, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.Window)
 			} else {
