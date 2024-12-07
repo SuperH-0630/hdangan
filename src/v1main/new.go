@@ -40,7 +40,7 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 		newWindow = nil
 	})
 
-	maker, ok := model.FileSetTypeMaker[w.table.fileSetType]
+	maker, ok := model.FileSetTypeMaker[w.fileSetType]
 	if !ok {
 		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
 		return
@@ -224,7 +224,7 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 		dialog.ShowConfirm("创建？", "你确定要新增档案嘛？", func(b bool) {
 			rt.Action()
 			if b {
-				err := model.CreateFile(rt, w.table.fileSetType, fm, record)
+				err := model.CreateFile(rt, w.fileSetType, fm, record)
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("数据库错误: %s", err.Error()), newWindow)
 				}

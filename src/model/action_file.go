@@ -72,20 +72,21 @@ func SetWhere(tx *gorm.DB, s *SearchWhere, fst FileSetType) *gorm.DB {
 	return tx
 }
 
-func GetAllFile(rt runtime.RunTime, fst FileSetType, s *SearchWhere, res interface{}) error {
+func GetAllFile[F File](rt runtime.RunTime, fst FileSetType, s *SearchWhere, model F) ([]F, error) {
 	db, err := GetDB(rt)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = SetWhere(db.Model(&FileAbs{}), s, fst).Order(FileOrder).Find(&res).Error
+	var res = make([]F, 0, 20)
+	err = SetWhere(db.Model(model), s, fst).Order(FileOrder).Find(&res).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil
+		return nil, err
 	} else if err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return res, nil
 }
 
 func GetNewFileID(rt runtime.RunTime, fst FileSetType, sameAbove bool) (fs *FileSet, lst File, unionID int64, fileID int64, groupID int64, err error) {
@@ -165,25 +166,27 @@ func PageChoiceOffset(rt runtime.RunTime, fileSetType FileSetType, pageItemCount
 	return (page - 1) * int64(pageItemCount), pageItemCount, pageMax, nil
 }
 
-func GetPageData(rt runtime.RunTime, fst FileSetType, pageItemCount int, page int64, s *SearchWhere, res interface{}) (int64, error) {
+func GetPageData[F File](rt runtime.RunTime, fst FileSetType, pageItemCount int, page int64, s *SearchWhere, model F) ([]F, int64, error) {
 	if pageItemCount <= 0 {
 		pageItemCount = DefaultPageItemCount
 	}
 
 	db, err := GetDB(rt)
 	if err != nil {
-		return 0, err
+		return nil, 0, err
 	}
 
 	offset, limit, pageMax, err := PageChoiceOffset(rt, fst, pageItemCount, page, s)
-	err = SetWhere(db.Model(FileAbs{}), s, fst).Limit(limit).Offset(int(offset)).Order(FileOrder).Find(res).Error
+
+	var res = make([]F, 0, limit)
+	err = SetWhere(db.Model(model), s, fst).Limit(limit).Offset(int(offset)).Order(FileOrder).Find(&res).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return 0, nil
+		return nil, 0, nil
 	} else if err != nil {
-		return 0, err
+		return nil, 0, err
 	}
 
-	return pageMax, nil
+	return res, pageMax, nil
 }
 
 func DeleteFile(rt runtime.RunTime, f File) error {

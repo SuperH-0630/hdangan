@@ -27,7 +27,6 @@ func startBtnClick(rt runtime.RunTime) error {
 }
 
 func createHelloWindow(rt runtime.RunTime) {
-	fmt.Println("TAG A")
 	if helloWindow != nil {
 		return
 	}
@@ -84,7 +83,6 @@ func createHelloWindow(rt runtime.RunTime) {
 		helloWindow.Close()
 		rt.App().Quit()
 	})
-	fmt.Println("TAG B")
 }
 
 func ShowHelloWindow(rt runtime.RunTime) {

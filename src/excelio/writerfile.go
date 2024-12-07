@@ -5,7 +5,6 @@ import (
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"github.com/xuri/excelize/v2"
-	"reflect"
 	"strings"
 )
 
@@ -75,30 +74,12 @@ func OutputFile(rt runtime.RunTime, fst model.FileSetType, savepath string, file
 			return fmt.Errorf("file set type not found")
 		}
 
-		tptr := reflect.TypeOf(maker())
-		if tptr.Kind() != reflect.Ptr {
-			return fmt.Errorf("file set type not found")
-		}
-
-		t := tptr.Elem()
-		if t.Kind() != reflect.Struct {
-			return fmt.Errorf("file set type not found")
-		}
-
-		if strings.HasPrefix(t.Name(), "File") {
-			return fmt.Errorf("file set type not found")
-		}
-
-		resValue := reflect.MakeSlice(reflect.SliceOf(t), 0, 20)
-		res := resValue.Interface()
-
-		err = model.GetAllFile(rt, fst, s, res)
+		res, err := model.GetAllFile(rt, fst, s, maker())
 		if err != nil {
 			return err
 		}
 
-		for i := 0; i < resValue.Len(); i++ {
-			file := resValue.Index(i).Interface().(model.File)
+		for i, file := range res {
 			res, err := fileToStringLst(rt, file)
 			if err != nil {
 				continue

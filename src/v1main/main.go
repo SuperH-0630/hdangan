@@ -15,17 +15,13 @@ import (
 
 func Main() {
 	start()
-	fmt.Println("TAG A")
 
 	a := happ.NewApp()
-	fmt.Println("TAG B")
 
 	rt := runtime.NewRunTime(a)
-	fmt.Println("TAG C")
 
 	err := model.AutoCreateModel(rt)
 	if err != nil {
-		fmt.Println("TAG D")
 		dbFail(rt, fmt.Sprintf("数据库构建失败: %s。", err.Error()), 1)
 		return
 	}

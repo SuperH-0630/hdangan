@@ -13,11 +13,10 @@ import (
 )
 
 type MainMenu struct {
-	Window  *CtrlWindow
-	Main    *fyne.MainMenu
-	Page    *fyne.Menu
-	FileSet *fyne.Menu
-	NowPage int64
+	window *CtrlWindow
+	menu   *fyne.MainMenu
+	page   *fyne.Menu
+	fst    *fyne.Menu
 }
 
 func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)) *MainMenu {
@@ -32,13 +31,12 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 	})
 
 	wm := &MainMenu{
-		Window:  w,
-		NowPage: 1,
+		window: w,
 	}
 
 	search := fyne.NewMenuItem("搜索条件", func() {
 		rt.Action()
-		ShowWhereWindow(rt, &wm.Window.table.whereInfo, refresh)
+		ShowWhereWindow(rt, &wm.window.table.whereInfo, refresh)
 	})
 
 	initFile := fyne.NewMenuItem("导入配置文件", func() {
@@ -146,7 +144,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, nil, nil)
+			err = excelio.OutputFile(rt, w.fileSetType, savepath, nil, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -178,7 +176,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, nil, &wm.Window.table.whereInfo)
+			err = excelio.OutputFile(rt, w.fileSetType, savepath, nil, &wm.window.table.whereInfo)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -190,7 +188,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 		dlg.Show()
 	})
 
-	outputNow := fyne.NewMenuItem("保存当前表格", func() {
+	outputNow := fyne.NewMenuItem("保存当前视图的数据", func() {
 		rt.Action()
 		dlg := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if writer == nil {
@@ -210,7 +208,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 				dialog.ShowError(fmt.Errorf("文件名必须以.xlsx结尾"), w.window)
 			}
 
-			err = excelio.OutputFile(rt, w.table.fileSetType, savepath, wm.Window.table.InfoFile, nil)
+			err = excelio.OutputFile(rt, w.fileSetType, savepath, wm.window.table.InfoFile, nil)
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("生成数据库遇到错误：%s", err), w.window)
 			} else {
@@ -222,7 +220,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 		dlg.Show()
 	})
 
-	outputAllEveryOne := fyne.NewMenuItem("导出所有档案全部迁移数据", func() {
+	outputAllEveryOne := fyne.NewMenuItem("导出所有档案全部借出数据", func() {
 		rt.Action()
 		dlg := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
 			if writer == nil {
@@ -254,7 +252,7 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 		dlg.Show()
 	})
 
-	outputAllWthSearchEveryOne := fyne.NewMenuItem("导出所有档案全部迁移数据（过滤后）", func() {
+	outputAllWthSearchEveryOne := fyne.NewMenuItem("导出所有档案借出数据（过滤后）", func() {
 		rt.Action()
 		ww := NewSaveWhereWindow(rt, func(rt runtime.RunTime, s *SaveWhereWindow) {
 			dlg := dialog.NewFileSave(func(writer fyne.URIWriteCloser, err error) {
@@ -290,14 +288,14 @@ func getMainMenu(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 	})
 
 	xitong := fyne.NewMenu("系统", newFile, exclFile, exclRecordFile, template, aboutMe, quit)
-	wm.FileSet = fyne.NewMenu("档案类型")
+	wm.fst = fyne.NewMenu("档案类型")
 	peizhi := fyne.NewMenu("配置", initFile, openFile, saveFile, copyFile)
 	sousuo := fyne.NewMenu("搜索", search)
-	wm.Page = fyne.NewMenu("分页")
+	wm.page = fyne.NewMenu("分页")
 	tongji := fyne.NewMenu("统计", tj, outputAll, outputAllWthSearch, outputNow, outputAllEveryOne, outputAllWthSearchEveryOne)
 	caidan := fyne.NewMenu("彩蛋", lucky)
 
-	wm.Main = fyne.NewMainMenu(xitong, peizhi, sousuo, wm.Page, tongji, caidan)
+	wm.menu = fyne.NewMainMenu(xitong, peizhi, sousuo, wm.fst, wm.page, tongji, caidan)
 	return wm
 }
 
@@ -310,7 +308,7 @@ func (m *MainMenu) ChangeFileSetModelItem(rt runtime.RunTime, pageItemCount int,
 			continue
 		}
 
-		if t == m.Window.table.fileSetType {
+		if t == m.window.fileSetType {
 			name += "（当前）"
 			setFileList = append(setFileList, fyne.NewMenuItem(name, func() {
 				dialog.ShowConfirm("是否需要重载？", message, func(b bool) {
@@ -318,20 +316,20 @@ func (m *MainMenu) ChangeFileSetModelItem(rt runtime.RunTime, pageItemCount int,
 					if !b {
 						return
 					}
-					m.Window.table.UpdateTable(rt, t, pageItemCount, m.NowPage)
-				}, m.Window.window)
+					m.window.table.UpdateTable(rt, t, pageItemCount, m.window.nowpage)
+				}, m.window.window)
 			}))
 		} else {
 			setFileList = append(setFileList, fyne.NewMenuItem(name, func() {
 				rt.Action()
-				m.Window.table.UpdateTable(rt, t, pageItemCount, 1)
+				m.window.table.UpdateTable(rt, t, pageItemCount, 1)
 			}))
 		}
 	}
 
-	m.FileSet.Items = setFileList
-	m.FileSet.Refresh()
-	m.Main.Refresh()
+	m.fst.Items = setFileList
+	m.fst.Refresh()
+	m.menu.Refresh()
 }
 
 func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p int64, pageMax int64, message string) {
@@ -340,12 +338,14 @@ func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p i
 		pageList = append(pageList, fyne.NewMenuItem("暂无数据", func() {
 			rt.Action()
 		}))
-		m.NowPage = 0
+		m.window.nowpage = 0
+		m.window.maxpage = 0
 	} else {
 		if p > pageMax {
 			p = pageMax
 		}
-		m.NowPage = p
+		m.window.nowpage = p
+		m.window.maxpage = pageMax
 		for k := int64(1); k <= pageMax; k++ {
 			i := k
 			if i == p {
@@ -356,20 +356,20 @@ func (m *MainMenu) ChangePageMenuItem(rt runtime.RunTime, pageItemCount int, p i
 						if !b {
 							return
 						}
-						m.Window.table.UpdateTable(rt, m.Window.table.fileSetType, pageItemCount, i)
-					}, m.Window.window)
+						m.window.table.UpdateTable(rt, m.window.fileSetType, pageItemCount, i)
+					}, m.window.window)
 				})
 				pageList = append(pageList, m)
 			} else {
 				pageList = append(pageList, fyne.NewMenuItem(fmt.Sprintf("第%d页", i), func() {
 					rt.Action()
-					m.Window.table.UpdateTable(rt, m.Window.table.fileSetType, pageItemCount, i)
+					m.window.table.UpdateTable(rt, m.window.fileSetType, pageItemCount, i)
 				}))
 			}
 		}
 	}
 
-	m.Page.Items = pageList
-	m.Page.Refresh()
-	m.Main.Refresh()
+	m.page.Items = pageList
+	m.page.Refresh()
+	m.menu.Refresh()
 }

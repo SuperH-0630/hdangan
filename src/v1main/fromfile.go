@@ -29,7 +29,7 @@ func AddFromFile(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunT
 			return
 		}
 
-		sa, su, fu, err := excelio.ReadFile(rt, w.table.fileSetType, reader)
+		sa, su, fu, err := excelio.ReadFile(rt, w.fileSetType, reader)
 		if errors.Is(err, excelio.BadTitle) {
 			dialog.ShowError(fmt.Errorf("表格首行（表头）对应错误"), w.window)
 			return
@@ -64,7 +64,7 @@ func AddRecordFromFile(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtim
 			return
 		}
 
-		sa, su, fu, err := excelio.ReadRecord(rt, w.table.fileSetType, reader)
+		sa, su, fu, err := excelio.ReadRecord(rt, w.fileSetType, reader)
 		if errors.Is(err, excelio.BadTitle) {
 			dialog.ShowError(fmt.Errorf("表格首行（表头）对应错误"), w.window)
 			return

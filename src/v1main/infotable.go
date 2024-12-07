@@ -8,8 +8,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
-	"reflect"
-	"strings"
 )
 
 var TopHeaderData = []string{"卷宗号", "卷宗类型", "文件联合编号", "文件编号", "文件组内编号", "姓名", "曾用名", "身份证", "性别", "出生日期", "备注", "详情"}
@@ -28,12 +26,11 @@ func init() {
 }
 
 type MainTable struct {
-	fileTable   *widget.Table
-	window      *CtrlWindow
-	InfoFile    []model.File
-	InfoData    [][]string
-	whereInfo   model.SearchWhere
-	fileSetType model.FileSetType
+	fileTable *widget.Table
+	window    *CtrlWindow
+	InfoFile  []model.File
+	InfoData  [][]string
+	whereInfo model.SearchWhere
 }
 
 func CreateInfoTable(rt runtime.RunTime, window *CtrlWindow) *MainTable {
@@ -51,9 +48,8 @@ func CreateInfoTable(rt runtime.RunTime, window *CtrlWindow) *MainTable {
 		})
 
 	m := &MainTable{
-		fileTable:   fileTable,
-		window:      ctrlWindow,
-		fileSetType: model.QianRu,
+		fileTable: fileTable,
+		window:    window,
 	}
 
 	fileTable.Length = func() (rows int, cols int) {
@@ -95,7 +91,7 @@ func CreateInfoTable(rt runtime.RunTime, window *CtrlWindow) *MainTable {
 			if id.Row >= 0 && id.Row < len(m.InfoData) {
 				file := m.InfoFile[id.Row]
 				ShowInfo(rt, file, func(rt runtime.RunTime) {
-					m.UpdateTable(rt, m.fileSetType, 0, window.menu.NowPage)
+					m.UpdateTable(rt, m.window.fileSetType, 0, m.window.nowpage)
 				})
 			}
 		}
@@ -106,7 +102,7 @@ func CreateInfoTable(rt runtime.RunTime, window *CtrlWindow) *MainTable {
 		rt.Action()
 	}
 
-	m.UpdateTable(rt, m.fileSetType, 0, window.menu.NowPage)
+	m.UpdateTable(rt, m.window.fileSetType, 0, m.window.nowpage)
 	return m
 }
 
@@ -135,7 +131,7 @@ func (m *MainTable) UpdateTableInfo(rt runtime.RunTime) {
 		}
 
 		res[i][0] = fmt.Sprintf("%03d", f.FileSetID)
-		res[i][1] = fmt.Sprintf("%s", model.FileSetTypeName[m.fileSetType])
+		res[i][1] = fmt.Sprintf("%s", model.FileSetTypeName[m.window.fileSetType])
 		res[i][2] = fmt.Sprintf("%03d", f.FileUnionID)
 		res[i][3] = fmt.Sprintf("%03d", f.FileID)
 		res[i][4] = fmt.Sprintf("%03d", f.FileGroupID)
@@ -161,42 +157,27 @@ func (m *MainTable) UpdateTable(rt runtime.RunTime, fileSetType model.FileSetTyp
 		return
 	}
 
-	tptr := reflect.TypeOf(maker())
-	if tptr.Kind() != reflect.Ptr {
-		return
-	}
-
-	t := tptr.Elem()
-	if t.Kind() != reflect.Struct {
-		return
-	}
-
-	if strings.HasPrefix(t.Name(), "File") {
-		return
-	}
-
-	resValue := reflect.MakeSlice(reflect.SliceOf(t), 0, pageItemCount)
-	res := resValue.Interface()
-	pageMax, err := model.GetPageData(rt, fileSetType, pageItemCount, p, &m.whereInfo, &res)
+	res, pageMax, err := model.GetPageData(rt, fileSetType, pageItemCount, p, &m.whereInfo, maker())
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("获取数据库档案信息错误。"), m.window.window)
 		return
 	}
 
 	m.InfoFile = make([]model.File, 0, pageItemCount)
-	for i := 0; i < resValue.Len(); i++ {
-		elem := resValue.Index(i)
-		etype := elem.Type()
-		if !etype.Implements(reflect.TypeOf((*model.File)(nil)).Elem()) {
-			continue
-		}
-
-		m.InfoFile = append(m.InfoFile, elem.Interface().(model.File))
+	for _, f := range res {
+		m.InfoFile = append(m.InfoFile, f)
 	}
 
 	m.UpdateTableInfo(rt)
 	m.window.menu.ChangePageMenuItem(rt, pageItemCount, p, pageMax, fmt.Sprintf("本页共显示数据：%d条。", len(m.InfoFile)))
 	m.window.menu.ChangeFileSetModelItem(rt, pageItemCount, fmt.Sprintf("本页共显示数据：%d条。", len(m.InfoFile)))
+
+	fstname, ok := model.FileSetTypeName[m.window.fileSetType]
+	if !ok {
+		fstname = "未知"
+	}
+	m.window.window.SetTitle(fmt.Sprintf("控制台-%s-%d/%d", fstname, m.window.nowpage, m.window.maxpage))
+
 	m.fileTable.Refresh()
 }
 

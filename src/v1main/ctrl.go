@@ -3,28 +3,35 @@ package v1main
 import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
 	"time"
 )
 
 type CtrlWindow struct {
-	window   fyne.Window
-	lastUse  time.Time
-	killTime time.Duration
-	rt       runtime.RunTime
-	menu     *MainMenu
-	table    *MainTable
+	window      fyne.Window
+	lastUse     time.Time
+	killTime    time.Duration
+	rt          runtime.RunTime
+	menu        *MainMenu
+	table       *MainTable
+	fileSetType model.FileSetType
+	nowpage     int64
+	maxpage     int64
 }
 
 var ctrlWindow *CtrlWindow
 
-func newCtrlWindow(rt runtime.RunTime, title string, killSecond time.Duration) *CtrlWindow {
+func newCtrlWindow(rt runtime.RunTime, killSecond time.Duration) *CtrlWindow {
 	ks := killSecond * time.Second
 	cw := &CtrlWindow{
-		window:   rt.App().NewWindow(title),
-		lastUse:  time.Now(),
-		killTime: ks,
-		rt:       rt,
+		window:      rt.App().NewWindow(""),
+		lastUse:     time.Now(),
+		killTime:    ks,
+		rt:          rt,
+		fileSetType: model.QianRu,
+		nowpage:     1,
+		maxpage:     1,
 	}
 
 	rt.SetDBConnectErrorWindow(cw.window)
@@ -33,12 +40,11 @@ func newCtrlWindow(rt runtime.RunTime, title string, killSecond time.Duration) *
 	})
 
 	cw.menu = getMainMenu(rt, cw, func(rt runtime.RunTime) {
-		cw.table.UpdateTable(rt, cw.table.fileSetType, 0, cw.menu.NowPage)
+		cw.table.UpdateTable(rt, cw.fileSetType, 0, cw.nowpage)
 	})
-	cw.window.SetMainMenu(cw.menu.Main)
+	cw.window.SetMainMenu(cw.menu.menu)
 
 	cw.table = CreateInfoTable(rt, cw)
-
 	return cw
 }
 
@@ -87,7 +93,7 @@ func createCtrlWindow(rt runtime.RunTime) error {
 		return nil
 	}
 
-	ctrlWindow = newCtrlWindow(rt, "桓档案-控制中心", 15*60)
+	ctrlWindow = newCtrlWindow(rt, 15*60)
 
 	ctrlWindow.window.SetOnClosed(func() {
 		ctrlWindow = nil
