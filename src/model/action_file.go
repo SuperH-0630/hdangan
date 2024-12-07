@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/SuperH-0630/hdangan/src/runtime"
+	"github.com/SuperH-0630/hdangan/src/systeminit"
 	"gorm.io/gorm"
 )
 
@@ -194,7 +195,12 @@ func DeleteFile(rt runtime.RunTime, f File) error {
 	return db.Delete(f).Error
 }
 
-func CreateFile(rt runtime.RunTime, fst FileSetType, fc File) error {
+func CreateFile(rt runtime.RunTime, fst FileSetType, fc File, record *FileMoveRecord) error {
+	config, err := systeminit.GetInit()
+	if err != nil {
+		return err
+	}
+
 	db, err := GetDB(rt)
 	if err != nil {
 		return err
@@ -214,24 +220,113 @@ func CreateFile(rt runtime.RunTime, fst FileSetType, fc File) error {
 		nf.FileSetID = fs.FileSetID
 		nf.FileSetType = fs.FileSetType
 		nf.FileSetSQLID = int64(fs.ID)
-		nf.PageStart = fs.PageCount + 1
-		nf.PageEnd = fs.PageCount + nf.PageCount
 
 		fs.PageCount += nf.PageEnd
 
 		if nf.SameAsAbove {
 			lf.PeopleCount += 1
 			nf.PeopleCount = lf.PeopleCount
+
+			nf.Time = lf.Time
+			nf.PageCount = lf.PageCount
+			nf.PageStart = lf.PageStart
+			nf.PageEnd = lf.PageEnd
+			nf.PeopleCount = lf.PeopleCount
+
+			nf.LastMoveRecordID = lf.LastMoveRecordID
+
+			switch ff := fc.(type) {
+			case *FileQianRu:
+				lff, ok := lastf.(*FileQianRu)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.OldLocation = lff.OldLocation
+				ff.NewLocation = lff.NewLocation
+			case *FileChuSheng:
+				lff, ok := lastf.(*FileChuSheng)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.NewLocation = lff.NewLocation
+			case *FileQianChu:
+				lff, ok := lastf.(*FileQianChu)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.NewLocation = lff.NewLocation
+			case *FileSiWang:
+				lff, ok := lastf.(*FileSiWang)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			case *FileBianGeng:
+				lff, ok := lastf.(*FileBianGeng)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			case *FileSuoNeiYiJu:
+				lff, ok := lastf.(*FileSuoNeiYiJu)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			case *FileSuoJianYiJu:
+				lff, ok := lastf.(*FileSuoJianYiJu)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			case *FileNongZiZhuanFei:
+				lff, ok := lastf.(*FileNongZiZhuanFei)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			case *FileYiZhanShiQianYiZheng:
+				lff, ok := lastf.(*FileYiZhanShiQianYiZheng)
+				if !ok {
+					return fmt.Errorf("file set type error")
+				}
+
+				ff.Type = lff.Type
+				ff.Location = lff.Location
+			}
+
 		} else {
 			nf.PeopleCount = 1
+			nf.PageStart = fs.PageCount + 1
+			nf.PageEnd = fs.PageCount + nf.PageCount
 		}
 
-		err = tx.Create(nf).Error
+		err = tx.Create(fc).Error
 		if err != nil {
 			return err
 		}
 
-		err = tx.Update("peoplecount", lf.PeopleCount).Error
+		modelMaker, ok := FileSetTypeMaker[fst]
+		if !ok {
+			return fmt.Errorf("bad file set type")
+		}
+		err = tx.Model(modelMaker()).Update("peoplecount", lf.PeopleCount).Where("fileunionid = ?", lf.FileUnionID).Error
 		if err != nil {
 			return err
 		}
@@ -239,6 +334,26 @@ func CreateFile(rt runtime.RunTime, fst FileSetType, fc File) error {
 		err = tx.Save(fs).Error
 		if err != nil {
 			return err
+		}
+
+		if record != nil && !nf.SameAsAbove {
+			record.MoveStatus = config.Yaml.Move.MoveInStatus
+			record.MoveTime = nf.Time
+
+			if !record.MoveInPeopleName.Valid || len(record.MoveInPeopleName.String) == 0 {
+				record.MoveInPeopleName.Valid = true
+				record.MoveInPeopleName.String = config.Yaml.Move.MoveInPeopleDefault
+			}
+
+			if !record.MoveInPeopleUnit.Valid || len(record.MoveInPeopleUnit.String) == 0 {
+				record.MoveInPeopleUnit.Valid = true
+				record.MoveInPeopleUnit.String = config.Yaml.Move.MoveInUnitDefault
+			}
+
+			err := createFileRecord(rt, tx, fc, record)
+			if err != nil {
+				return err
+			}
 		}
 
 		return nil

@@ -205,55 +205,59 @@ func CreateFileRecord(rt runtime.RunTime, fc File, record *FileMoveRecord) error
 		return err
 	}
 
+	return db.Transaction(func(tx *gorm.DB) error {
+		return createFileRecord(rt, tx, fc, record)
+	})
+}
+
+func createFileRecord(rt runtime.RunTime, tx *gorm.DB, fc File, record *FileMoveRecord) error {
 	f := fc.GetFile()
 	if f.ID <= 0 {
 		return fmt.Errorf("file not save")
 	}
 
-	return db.Transaction(func(tx *gorm.DB) error {
-		var file1 FileAbs
-		var oldRecord *FileMoveRecord
+	var file1 FileAbs
+	var oldRecord *FileMoveRecord
 
-		oldRecord, err := FindMoveRecord(rt, fc)
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			oldRecord = nil
-		} else {
-			return err
-		}
+	oldRecord, err := FindMoveRecord(rt, fc)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		oldRecord = nil
+	} else {
+		return err
+	}
 
-		err = tx.Where("fileunionid = ?", f.FileUnionID).Order("filegroupid asc").First(&file1).Error
-		err = tx.Save(record).Error
+	err = tx.Where("fileunionid = ?", f.FileUnionID).Order("filegroupid asc").First(&file1).Error
+	err = tx.Save(record).Error
+	if err != nil {
+		return err
+	}
+
+	record.FileSetSQLID = file1.FileSetSQLID
+	record.FileSetID = file1.FileSetID
+	record.FileSetType = file1.FileSetType
+
+	record.FileSQLID = int64(file1.ID)
+	record.FileUnionID = int64(file1.ID)
+
+	if oldRecord != nil {
+		record.UpRecord = sql.NullInt64{Valid: true, Int64: int64(oldRecord.ID)}
+	}
+	err = tx.Save(record).Error
+	if err != nil {
+		return err
+	}
+
+	err = tx.Update("lastmoverecordid", sql.NullInt64{Valid: true, Int64: int64(record.ID)}).Where("fileunionid = ?", file1.FileUnionID).Error
+	if err != nil {
+		return err
+	}
+
+	if oldRecord != nil {
+		oldRecord.NextRecord = sql.NullInt64{Valid: true, Int64: int64(record.ID)}
+		err = tx.Save(oldRecord).Error
 		if err != nil {
 			return err
 		}
-
-		record.FileSetSQLID = file1.FileSetSQLID
-		record.FileSetID = file1.FileSetID
-		record.FileSetType = file1.FileSetType
-
-		record.FileSQLID = int64(file1.ID)
-		record.FileUnionID = int64(file1.ID)
-
-		if oldRecord != nil {
-			record.UpRecord = sql.NullInt64{Valid: true, Int64: int64(oldRecord.ID)}
-		}
-		err = tx.Save(record).Error
-		if err != nil {
-			return err
-		}
-
-		err = tx.Update("lastmoverecordid", sql.NullInt64{Valid: true, Int64: int64(record.ID)}).Where("fileunionid = ?", file1.FileUnionID).Error
-		if err != nil {
-			return err
-		}
-
-		if oldRecord != nil {
-			oldRecord.NextRecord = sql.NullInt64{Valid: true, Int64: int64(record.ID)}
-			err = tx.Save(oldRecord).Error
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }

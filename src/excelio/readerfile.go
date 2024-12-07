@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/SuperH-0630/hdangan/src/model"
 	"github.com/SuperH-0630/hdangan/src/runtime"
+	"github.com/SuperH-0630/hdangan/src/systeminit"
 	"github.com/xuri/excelize/v2"
 	"io"
 	"strconv"
@@ -13,15 +14,15 @@ import (
 )
 
 var InputTitle = map[model.FileSetType][]string{
-	model.QianRu:               {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "旧地址", "新地址", "办理时间", "备考", "材料页数", "材料"},
-	model.ChuSheng:             {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.QianChu:              {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "新地址", "办理时间", "备考", "材料页数", "材料"},
-	model.SiWang:               {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.BianGeng:             {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.SuoNeiYiJu:           {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.SuoJianYiJu:          {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.NongZiZhuanFei:       {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
-	model.YiZhanShiQianYiZheng: {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料"},
+	model.QianRu:               {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "旧地址", "新地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.ChuSheng:             {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.QianChu:              {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "新地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.SiWang:               {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.BianGeng:             {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.SuoNeiYiJu:           {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.SuoJianYiJu:          {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.NongZiZhuanFei:       {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
+	model.YiZhanShiQianYiZheng: {"档案ID", "姓名", "曾用名", "身份证", "性别", "出生日期", "是否同上", "备注", "类型", "地址", "办理时间", "备考", "材料页数", "材料", "录入人", "录入单位"},
 }
 
 var Header = []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S"}
@@ -114,12 +115,12 @@ func checkTitle(t []string, tit []string) bool {
 
 func makeFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []string) int {
 	if t[0] == "" {
-		file, err := makeNewFile(rt, fst, t, tit)
+		file, record, err := makeNewFile(rt, fst, t, tit)
 		if err != nil {
 			return fail
 		}
 
-		err = model.CreateFile(rt, file.GetFile().FileSetType, file)
+		err = model.CreateFile(rt, file.GetFile().FileSetType, file, record)
 		if err != nil {
 			return fail
 		}
@@ -143,10 +144,15 @@ func makeFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []strin
 	}
 }
 
-func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []string) (model.File, error) {
+func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []string) (model.File, *model.FileMoveRecord, error) {
+	config, err := systeminit.GetInit()
+	if err != nil {
+		return nil, nil, err
+	}
+
 	name := t[1]
 	if len(name) == 0 {
-		return nil, fmt.Errorf("must has name")
+		return nil, nil, fmt.Errorf("must has name")
 	}
 
 	oldName := sql.NullString{
@@ -166,7 +172,7 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 		var err error
 		birthday, err = timeReader(time.Now(), t[5])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -190,7 +196,7 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 		var err error
 		fileTime, err = timeReader(time.Now(), t[fileTimeIndex])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
@@ -201,12 +207,22 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 
 	page, err := strconv.ParseInt(t[fileTimeIndex+2], 10, 64)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	material := sql.NullString{
 		Valid:  len(t[fileTimeIndex+3]) != 0,
 		String: t[fileTimeIndex+3],
+	}
+
+	moveInPeople := sql.NullString{
+		Valid:  len(t[fileTimeIndex+4]) != 0,
+		String: t[fileTimeIndex+4],
+	}
+
+	moveInUnit := sql.NullString{
+		Valid:  len(t[fileTimeIndex+5]) != 0,
+		String: t[fileTimeIndex+5],
 	}
 
 	var res model.File
@@ -234,17 +250,17 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.QianRu:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		oldLoc := t[9]
 		if len(oldLoc) == 0 {
-			return nil, fmt.Errorf("must has old location")
+			return nil, nil, fmt.Errorf("must has old location")
 		}
 
 		newLoc := t[10]
 		if len(newLoc) == 0 {
-			return nil, fmt.Errorf("must has new location")
+			return nil, nil, fmt.Errorf("must has new location")
 		}
 
 		res = &model.FileQianRu{
@@ -256,12 +272,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.ChuSheng:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has location")
+			return nil, nil, fmt.Errorf("must has location")
 		}
 
 		res = &model.FileChuSheng{
@@ -272,12 +288,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.SiWang:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has new location")
+			return nil, nil, fmt.Errorf("must has new location")
 		}
 
 		res = &model.FileSiWang{
@@ -288,12 +304,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.BianGeng:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has location")
+			return nil, nil, fmt.Errorf("must has location")
 		}
 
 		res = &model.FileBianGeng{
@@ -304,12 +320,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.SuoNeiYiJu:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has location")
+			return nil, nil, fmt.Errorf("must has location")
 		}
 
 		res = &model.FileSuoNeiYiJu{
@@ -320,12 +336,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.SuoJianYiJu:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has new location")
+			return nil, nil, fmt.Errorf("must has new location")
 		}
 
 		res = &model.FileSuoJianYiJu{
@@ -336,12 +352,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.NongZiZhuanFei:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has location")
+			return nil, nil, fmt.Errorf("must has location")
 		}
 
 		res = &model.FileNongZiZhuanFei{
@@ -352,12 +368,12 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 	case model.YiZhanShiQianYiZheng:
 		fileType := t[8]
 		if len(fileType) == 0 {
-			return nil, fmt.Errorf("must has file type")
+			return nil, nil, fmt.Errorf("must has file type")
 		}
 
 		loc := t[9]
 		if len(loc) == 0 {
-			return nil, fmt.Errorf("must has location")
+			return nil, nil, fmt.Errorf("must has location")
 		}
 
 		res = &model.FileYiZhanShiQianYiZheng{
@@ -366,10 +382,16 @@ func makeNewFile(rt runtime.RunTime, fst model.FileSetType, t []string, tit []st
 			Location: loc,
 		}
 	default:
-		return nil, fmt.Errorf("file set type error")
+		return nil, nil, fmt.Errorf("file set type error")
 	}
 
-	return res, nil
+	record := &model.FileMoveRecord{
+		MoveStatus:       config.Yaml.Move.MoveInStatus,
+		MoveInPeopleName: moveInPeople,
+		MoveInPeopleUnit: moveInUnit,
+	}
+
+	return res, record, nil
 }
 
 func makeUpdateFile(rt runtime.RunTime, fileID int64, fst model.FileSetType, t []string, tit []string) (model.File, error) {

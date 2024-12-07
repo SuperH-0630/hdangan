@@ -2,6 +2,7 @@ package v1main
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -18,6 +19,15 @@ import (
 )
 
 func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)) {
+	config, err := systeminit.GetInit()
+	if errors.Is(err, systeminit.LuckyError) {
+		rt.DBConnectError(err)
+		return
+	} else if err != nil {
+		rt.DBConnectError(fmt.Errorf("配置文件错误，请检查配置文件状态。"))
+		return
+	}
+
 	newWindow := rt.App().NewWindow("创建记录")
 
 	newWindow.SetOnClosed(func() {
@@ -37,6 +47,9 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 	}
 
 	fm := maker()
+	record := &model.FileMoveRecord{
+		MoveStatus: config.Yaml.Move.MoveInStatus,
+	}
 	f := fm.GetFile()
 
 	f.PeopleCount = 1
@@ -50,11 +63,11 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 	}
 
 	material := widget.NewMultiLineEntry()
-	material.Text = strToStr(f.Comment, "")
+	material.Text = strToStr(f.Material, "")
 	material.Wrapping = fyne.TextWrapWord
 	material.OnChanged = func(s string) {
 		rt.Action()
-		material.Text = strToStr(f.Comment, "")
+		material.Text = strToStr(f.Material, "")
 	}
 
 	if !f.OldName.Valid {
@@ -187,6 +200,12 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 
 		widget.NewLabel("材料："),
 		material,
+
+		widget.NewLabel("记录人："),
+		newEntryWithNULL4(config.Yaml.Move.MoveInPeopleDefault, &record.MoveInPeopleName, &sameAboveDisableList),
+
+		widget.NewLabel("记录单位："),
+		newMoveUnitSelectWithNULL4(config.Yaml.Move.MoveInUnitDefault, config.Yaml.Move.MoveUnit, &record.MoveInPeopleUnit, &sameAboveDisableList),
 	)
 
 	rightLayout := layout.NewFormLayout()
@@ -205,7 +224,7 @@ func ShowNew(rt runtime.RunTime, w *CtrlWindow, refresh func(rt runtime.RunTime)
 		dialog.ShowConfirm("创建？", "你确定要新增档案嘛？", func(b bool) {
 			rt.Action()
 			if b {
-				err := model.CreateFile(rt, w.table.fileSetType, fm)
+				err := model.CreateFile(rt, w.table.fileSetType, fm, record)
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("数据库错误: %s", err.Error()), newWindow)
 				}
@@ -266,6 +285,75 @@ func newEntry4(data string, input *string, disableLst *[]fyne.Disableable) *widg
 	}
 
 	return entry
+}
+
+func newEntryWithNULL4(data string, input *sql.NullString, disableLst *[]fyne.Disableable) *widget.Entry {
+	entry := widget.NewEntry()
+	entry.Text = data
+
+	entry.OnChanged = func(s string) {
+		if entry.Validate() == nil {
+			if len(s) == 0 {
+				*input = sql.NullString{
+					Valid:  false,
+					String: "",
+				}
+			} else {
+				*input = sql.NullString{
+					Valid:  true,
+					String: s,
+				}
+			}
+		}
+	}
+
+	entryList4 = append(entryList4, entry)
+
+	if disableLst != nil {
+		*disableLst = append(*disableLst, entry)
+	}
+
+	return entry
+}
+
+func newMoveUnitSelectWithNULL4(data string, firstOptions []string, input *sql.NullString, disableLst *[]fyne.Disableable) *widget.Select {
+	const emptySelectItem = "暂无"
+
+	if data == "" {
+		data = emptySelectItem
+	}
+
+	options := make([]string, 0, len(firstOptions)+1)
+	options = append(options, emptySelectItem)
+
+	for _, fo := range firstOptions {
+		if fo != emptySelectItem && fo != "" {
+			options = append(options, fo)
+		}
+	}
+
+	sel := widget.NewSelect(options, func(s string) {
+		if len(s) == 0 || s == emptySelectItem {
+			*input = sql.NullString{
+				Valid:  false,
+				String: "",
+			}
+		} else {
+			*input = sql.NullString{
+				Valid:  true,
+				String: s,
+			}
+		}
+	})
+
+	sel.PlaceHolder = ""
+	sel.Selected = data
+
+	if disableLst != nil {
+		*disableLst = append(*disableLst, sel)
+	}
+
+	return sel
 }
 
 func newEntryPage4(data int64, input *int64, disableLst *[]fyne.Disableable) *widget.Entry {
@@ -480,6 +568,10 @@ func newSameAboveCheck4(data string, input *bool, disableLst *[]fyne.Disableable
 
 func checkAllInputRight4() error {
 	for _, e := range entryList4 {
+		if e.Disabled() {
+			continue
+		}
+
 		err := e.Validate()
 		if err != nil {
 			return err

@@ -38,14 +38,24 @@ func (r *Report) init() error {
 }
 
 type Move struct {
-	MoveInStatus string   `yaml:"moveInStatus"`
-	MoveStatus   []string `yaml:"moveStatus"`
-	MoveUnit     []string `yaml:"moveUnit"`
+	MoveInStatus        string   `yaml:"moveInStatus"`
+	MoveStatus          []string `yaml:"moveStatus"`
+	MoveUnit            []string `yaml:"moveUnit"`
+	MoveInPeopleDefault string   `yaml:"moveInPeopleDefault"`
+	MoveInUnitDefault   string   `yaml:"moveInUnitDefault"`
 }
 
 func (m *Move) init() error {
 	if len(m.MoveInStatus) == 0 {
-		m.MoveInStatus = "在档"
+		m.MoveInStatus = "初次录入"
+	}
+
+	if len(m.MoveInPeopleDefault) == 0 {
+		m.MoveInPeopleDefault = "管理员"
+	}
+
+	if len(m.MoveInUnitDefault) == 0 {
+		m.MoveInUnitDefault = "管理局"
 	}
 
 	func() {
@@ -55,6 +65,15 @@ func (m *Move) init() error {
 			}
 		}
 		m.MoveStatus = append(m.MoveStatus, m.MoveInStatus)
+	}()
+
+	func() {
+		for _, s := range m.MoveStatus {
+			if s == m.MoveInUnitDefault {
+				return
+			}
+		}
+		m.MoveStatus = append(m.MoveStatus, m.MoveInUnitDefault)
 	}()
 
 	for _, s := range m.MoveStatus {
@@ -226,15 +245,18 @@ func GetInit() (InitConfig, error) {
 					Email: "songzihuan@song-zh.com",
 				},
 				Move: Move{
-					MoveInStatus: "归档",
+					MoveInStatus: "初次录入",
 					MoveStatus: []string{
-						"归档", "借出",
+						"初次录入", "借出", "归还",
 					},
 					MoveUnit: []string{
+						"管理局",
 						"一中队",
 						"二中队",
 						"三中队",
 					},
+					MoveInPeopleDefault: "管理员",
+					MoveInUnitDefault:   "管理局",
 				},
 				File: File{},
 				FileSet: FileSet{
